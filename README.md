@@ -1,73 +1,117 @@
-# React + TypeScript + Vite
+# Preproute Test Management Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript test management application developed as part of the Preproute frontend developer evaluation task.
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 20+
+- npm
 
-## React Compiler
+## Installation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Clone the repository and install dependencies:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+git clone <repository-url>
+cd preproute-test-management-application
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
+Create a `.env` file in the project root:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```env
+VITE_API_BASE_URL=https://your-api-url.com/api
 ```
+
+Do not commit `.env` files containing sensitive information.
+
+## Run the Project
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Preview the production build:
+
+```bash
+npm run preview
+```
+
+Run ESLint:
+
+```bash
+npm run lint
+```
+
+Format the project:
+
+```bash
+npm run format
+```
+
+Check formatting:
+
+```bash
+npm run format:check
+```
+
+## Import Alias
+
+The project uses `@` as an alias for the `src` directory.
+
+Example:
+
+```tsx
+import LoginPage from '@/pages/auth/LoginPage';
+```
+
+TypeScript and Vite are both configured to resolve this alias.
+
+## Code Quality
+
+The project uses:
+
+- TypeScript
+- ESLint
+- Prettier
+- ESLint import ordering
+- Type-only imports where applicable
+
+Before submitting, run:
+
+```bash
+npm run lint
+npm run format:check
+npm run build
+```
+
+## Design
+
+Figma:
+
+https://www.figma.com/design/Xe45bF7fnHroM1g1gDGXFR/Preproute-Assignment
+
+## Backend
+
+API documentation and staging backend were provided as part of the Preproute evaluation task.
+
+## Assignment Deliverables
+
+The final submission includes:
+
+- GitHub repository
+- Deployed application
+- Walkthrough video
+- Brief technical explanation
+
+Submission is made through the Google Form provided by Preproute.

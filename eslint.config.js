@@ -1,5 +1,6 @@
 import js from 'eslint/js';
 import globals from 'globals';
+import importPlugin from 'eslint-plugin-import-x';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
@@ -19,8 +20,45 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
 
+    plugins: {
+      import: importPlugin,
+    },
+
     languageOptions: {
       globals: globals.browser,
+    },
+
+    rules: {
+      'import/order': [
+        'error',
+        {
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            ['parent', 'sibling', 'index'],
+            'object',
+            'type',
+          ],
+
+          pathGroups: [
+            {
+              pattern: '@/**',
+              group: 'internal',
+              position: 'after',
+            },
+          ],
+
+          pathGroupsExcludedImportTypes: ['builtin'],
+
+          'newlines-between': 'always',
+
+          alphabetize: {
+            order: 'asc',
+            caseInsensitive: true,
+          },
+        },
+      ],
     },
   },
 

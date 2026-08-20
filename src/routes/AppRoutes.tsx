@@ -9,9 +9,10 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
 import TestFormPage from '@/pages/tests/TestFormPage';
 import QuestionsPage from '@/pages/tests/QuestionsPage';
 import PreviewPage from '@/pages/tests/PreviewPage';
+import { getToken } from '@/utils/storage';
 
 function RootRedirect() {
-  const token = localStorage.getItem('token');
+  const token = getToken();
 
   return <Navigate to={token ? '/dashboard' : '/login'} replace />;
 }

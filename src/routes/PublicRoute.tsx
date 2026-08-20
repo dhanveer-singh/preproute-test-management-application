@@ -1,7 +1,8 @@
+import { getToken } from '@/utils/storage';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 function PublicRoute() {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   const location = useLocation();
 
   if (token) {

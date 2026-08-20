@@ -1,9 +1,6 @@
 import Swal from 'sweetalert2';
 
-export const showConfirmation = async (
-  title: string,
-  text: string,
-) => {
+export const showConfirmation = async (title: string, text: string) => {
   const result = await Swal.fire({
     title,
     text,

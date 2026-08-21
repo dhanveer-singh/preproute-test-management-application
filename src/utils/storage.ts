@@ -11,7 +11,3 @@ export const setToken = (token: string): void => {
 export const removeToken = (): void => {
   sessionStorage.removeItem(TOKEN_KEY);
 };
-
-export const clearStorage = (): void => {
-  sessionStorage.clear();
-};

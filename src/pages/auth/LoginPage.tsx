@@ -6,10 +6,10 @@ import logo from '@/assets/images/logo.svg';
 import loginIllustration from '@/assets/images/login-illustration.svg';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
-import api from '@/services/api';
 import { loginSchema, type LoginFormData } from '@/types/auth';
 import { setToken } from '@/utils/storage';
-import { showError, showSuccess } from '@/utils/toast';
+import { showSuccess } from '@/utils/toast';
+import { login } from '@/services/authApi';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -27,15 +27,15 @@ function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const response = await api.post('/auth/login', data);
+      const response = await login(data);
 
-      setToken(response.data.data.token);
+      setToken(response.data.token);
 
-      showSuccess('Logged in successfully');
+      showSuccess(response.message);
 
       navigate('/dashboard', { replace: true });
     } catch {
-      showError('Invalid User ID or Password');
+      // Common API errors are handled by api.ts.
     }
   };
 

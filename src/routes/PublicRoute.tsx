@@ -1,3 +1,4 @@
+import FRONTEND_ROUTES from '@/constants/frontendRoutes';
 import { getToken } from '@/utils/storage';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
@@ -6,7 +7,7 @@ function PublicRoute() {
   const location = useLocation();
 
   if (token) {
-    const from = location.state?.from?.pathname || '/dashboard';
+    const from = location.state?.from?.pathname || FRONTEND_ROUTES.DASHBOARD;
 
     return <Navigate to={from} replace />;
   }

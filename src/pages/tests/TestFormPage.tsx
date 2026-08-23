@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';

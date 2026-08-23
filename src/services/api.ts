@@ -1,14 +1,9 @@
 import axios from 'axios';
 
-import {
-  getToken,
-  removeToken,
-} from '@/utils/storage';
+import { getToken, removeToken } from '@/utils/storage';
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL ||
-    '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
 
   headers: {
     'Content-Type': 'application/json',
@@ -24,8 +19,7 @@ api.interceptors.request.use(
     const token = getToken();
 
     if (token) {
-      config.headers.Authorization =
-        `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;

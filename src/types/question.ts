@@ -97,9 +97,6 @@ export interface CreateQuestionPayload {
 
   subject: string;
 
-  topic?: string;
-  sub_topic?: string;
-
   media_url?: string;
 
   test_id: string;

@@ -1,148 +1,663 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-
-import { ChevronDown, ChevronLeft, ChevronRight, Download, Plus, Trash2 } from 'lucide-react';
-
-import { useMemo, useState } from 'react';
-
-import type { UseFormRegisterReturn } from 'react-hook-form';
-
+import { ChevronDown, Edit2, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { useNavigate, useParams } from 'react-router-dom';
 
 import Breadcrumb from '@/components/Breadcrumb';
 import Button from '@/components/Button';
 
 import FRONTEND_ROUTES from '@/constants/frontendRoutes';
+import { DIFFICULTY_OPTIONS } from '@/constants/test';
 
-import { QUESTION_DIFFICULTY_OPTIONS } from '@/constants/question';
+import { getSubTopicsByTopics, getTopicsBySubject } from '@/services/topicApi';
 
-import { MOCK_QUESTIONS } from '@/mockData/questionData';
+import { createQuestionsBulk } from '@/services/questionApi';
 
-import { MOCK_SUB_TOPICS, MOCK_TOPICS } from '@/mockData/testData';
+import { showError, showSuccess, showWarning } from '@/utils/toast';
 
-import { questionSchema } from '@/schemas/question.schema';
+import { getTestById } from '@/services/testApi';
+import { getSubjects } from '@/services/subjectApi';
 
-import type { QuestionFormData, QuestionListItem } from '@/types/question';
+import { questionSchema, type QuestionFormData } from '@/schemas/question.schema';
+
+import type { SubTopic, Test, Topic } from '@/types/test';
+
+import type { Question } from '@/types/question';
+import axios from 'axios';
+
+/* =========================================================
+   PAGE
+========================================================= */
 
 function QuestionsPage() {
   const navigate = useNavigate();
-  const { id: testId } = useParams();
 
-  const [currentQuestion, setCurrentQuestion] = useState(1);
+  const { id } = useParams<{
+    id: string;
+  }>();
 
-  const [savedQuestions, setSavedQuestions] = useState<QuestionListItem[]>(MOCK_QUESTIONS);
-
-  const totalQuestions = 50;
+  /* =========================================================
+     FORM
+  ========================================================= */
 
   const {
     register,
     handleSubmit,
-    watch,
+    reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<QuestionFormData>({
     resolver: zodResolver(questionSchema),
 
     defaultValues: {
       question: '',
-
       option1: '',
       option2: '',
       option3: '',
       option4: '',
-
-      correctOption: '',
-
+      correctOption: 'option1',
       explanation: '',
-
       difficulty: 'easy',
-
       topic: '',
       subTopic: '',
-
       mediaUrl: '',
     },
   });
 
+  /* =========================================================
+     STATE
+  ========================================================= */
+
+  const [test, setTest] = useState<Test | null>(null);
+
+  const [subjectId, setSubjectId] = useState<string>('');
+
+  const [topics, setTopics] = useState<Topic[]>([]);
+
+  const [subTopics, setSubTopics] = useState<SubTopic[]>([]);
+
+  const [questions, setQuestions] = useState<Question[]>([]);
+
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+
+  const [isTestLoading, setIsTestLoading] = useState(true);
+
+  const [isTopicsLoading, setIsTopicsLoading] = useState(false);
+
+  const [isSubTopicsLoading, setIsSubTopicsLoading] = useState(false);
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [isContinueLoading, setIsContinueLoading] = useState(false);
+
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  /* =========================================================
+     WATCH
+  ========================================================= */
+
   const selectedTopic = watch('topic');
 
-  const selectedSubject = 'c495e328-066c-4ae5-a959-4bb9f3e357d7';
+  /* =========================================================
+     FETCH TEST
+  ========================================================= */
+  useEffect(() => {
+    if (!id) {
+      setPageError('Test ID is missing.');
+      setIsTestLoading(false);
+      return;
+    }
 
-  const topics = useMemo(
-    () => MOCK_TOPICS.filter((topic) => topic.subject_id === selectedSubject),
-    [],
-  );
+    let mounted = true;
 
-  const subTopics = useMemo(
-    () => MOCK_SUB_TOPICS.filter((subTopic) => subTopic.topic_id === selectedTopic),
-    [selectedTopic],
-  );
+    const fetchTest = async () => {
+      try {
+        setIsTestLoading(true);
+        setPageError(null);
 
-  const handleSaveQuestion = (data: QuestionFormData) => {
-    const newQuestion: QuestionListItem = {
-      id: `question-${Date.now()}`,
+        const data = await getTestById(id);
+
+        if (!mounted) {
+          return;
+        }
+
+        setTest(data);
+      } catch (error) {
+        console.error('Failed to fetch test:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setTest(null);
+        setPageError('Unable to load test details.');
+
+        showError('Unable to load test details.');
+      } finally {
+        if (mounted) {
+          setIsTestLoading(false);
+        }
+      }
+    };
+
+    fetchTest();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  /* =========================================================
+   RESOLVE SUBJECT ID
+========================================================= */
+
+  useEffect(() => {
+    if (!test?.subject) {
+      setSubjectId('');
+      return;
+    }
+
+    let mounted = true;
+
+    const resolveSubjectId = async () => {
+      try {
+        const subjects = await getSubjects();
+
+        if (!mounted) {
+          return;
+        }
+
+        const testSubject = String(test.subject).trim().toLowerCase();
+
+        const matchedSubject = subjects.find(
+          (subject) =>
+            subject.id === test.subject || subject.name.trim().toLowerCase() === testSubject,
+        );
+
+        if (!matchedSubject) {
+          console.error('Subject not found:', test.subject);
+
+          setSubjectId('');
+
+          showError(`Subject "${test.subject}" could not be found.`);
+
+          return;
+        }
+
+        console.log('Resolved subject:', matchedSubject);
+
+        setSubjectId(matchedSubject.id);
+      } catch (error) {
+        console.error('Failed to resolve subject:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setSubjectId('');
+
+        showError('Unable to load subject information.');
+      }
+    };
+
+    resolveSubjectId();
+
+    return () => {
+      mounted = false;
+    };
+  }, [test?.subject]);
+
+  /* =========================================================
+   FETCH TOPICS
+========================================================= */
+
+  useEffect(() => {
+    if (!subjectId) {
+      setTopics([]);
+      setIsTopicsLoading(false);
+      return;
+    }
+
+    let mounted = true;
+
+    const fetchTopics = async () => {
+      try {
+        setIsTopicsLoading(true);
+
+        console.log('Fetching topics for subject ID:', subjectId);
+
+        const data = await getTopicsBySubject(subjectId);
+
+        console.log('Topics fetched:', data);
+
+        if (!mounted) {
+          return;
+        }
+
+        setTopics(data);
+      } catch (error) {
+        console.error('Failed to fetch topics:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setTopics([]);
+
+        showError('Unable to load topics.');
+      } finally {
+        if (mounted) {
+          setIsTopicsLoading(false);
+        }
+      }
+    };
+
+    fetchTopics();
+
+    return () => {
+      mounted = false;
+    };
+  }, [subjectId]);
+
+  /* =========================================================
+   FETCH SUB-TOPICS BY SELECTED TOPIC
+========================================================= */
+  useEffect(() => {
+    if (!selectedTopic) {
+      setSubTopics([]);
+      setIsSubTopicsLoading(false);
+      setValue('subTopic', '');
+      return;
+    }
+
+    let mounted = true;
+
+    const fetchSubTopics = async () => {
+      try {
+        setIsSubTopicsLoading(true);
+
+        console.log('SUBTOPIC REQUEST:', selectedTopic);
+        console.log('Sub-topic payload:', {
+          topicIds: [selectedTopic],
+        });
+
+        const data = await getSubTopicsByTopics([selectedTopic]);
+
+        console.log('SUBTOPIC RESPONSE:', data);
+
+        if (!mounted) {
+          return;
+        }
+
+        setSubTopics(data);
+      } catch (error) {
+        console.error('Failed to fetch sub-topics:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setSubTopics([]);
+
+        showError('Unable to load sub-topics.');
+      } finally {
+        if (mounted) {
+          setIsSubTopicsLoading(false);
+        }
+      }
+    };
+
+    fetchSubTopics();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedTopic, setValue]);
+
+  /* =========================================================
+     RESET QUESTION FORM
+  ========================================================= */
+
+  const resetQuestionForm = () => {
+    reset({
+      question: '',
+      option1: '',
+      option2: '',
+      option3: '',
+      option4: '',
+      correctOption: 'option1',
+      explanation: '',
+      difficulty: 'easy',
+      topic: '',
+      subTopic: '',
+      mediaUrl: '',
+    });
+
+    setEditingQuestionId(null);
+
+    setSubTopics([]);
+  };
+
+  /* =========================================================
+     ADD / UPDATE QUESTION
+  ========================================================= */
+
+  const handleQuestionSubmit = async (data: QuestionFormData) => {
+    if (!id) {
+      return;
+    }
+
+    /*
+     * Editing an already-added question
+     * only changes the local list.
+     *
+     * All questions are submitted through
+     * /questions/bulk.
+     */
+
+    if (editingQuestionId) {
+      setQuestions((previous) =>
+        previous.map((question) =>
+          question.id === editingQuestionId
+            ? {
+                ...question,
+                question: data.question,
+                option1: data.option1,
+                option2: data.option2,
+                option3: data.option3,
+                option4: data.option4,
+
+                correct_option: data.correctOption as Question['correct_option'],
+
+                explanation: data.explanation || null,
+
+                difficulty: data.difficulty ? (data.difficulty as Question['difficulty']) : null,
+
+                topic: data.topic || null,
+
+                sub_topic: data.subTopic || null,
+
+                media_url: data.mediaUrl || null,
+              }
+            : question,
+        ),
+      );
+
+      resetQuestionForm();
+      showSuccess('Question updated successfully.');
+      return;
+    }
+
+    const newQuestion: Question = {
+      id: crypto.randomUUID(),
+
+      type: 'mcq',
+
       question: data.question,
+
       option1: data.option1,
       option2: data.option2,
       option3: data.option3,
       option4: data.option4,
-      correctOption: data.correctOption as 'option1' | 'option2' | 'option3' | 'option4',
+
+      correct_option: data.correctOption,
+
+      explanation: data.explanation || null,
+
+      difficulty: data.difficulty || null,
+
+      paragraph: null,
+
+      media_url: data.mediaUrl || null,
+
+      created_by: 0,
+      created_at: '',
+      updated_by: null,
+      updated_at: null,
+
+      test_id: id!,
+
+      category: null,
+
+      subject: test?.subject ?? '',
+
+      topic: data.topic || null,
+
+      sub_topic: data.subTopic || null,
     };
+    setQuestions((previous) => [...previous, newQuestion]);
 
-    setSavedQuestions((previous) => [...previous, newQuestion]);
+    resetQuestionForm();
 
-    /*
-     * API PLACEHOLDER
-     *
-     * Later:
-     *
-     * POST /questions/bulk
-     *
-     * {
-     *   questions: [...]
-     * }
-     */
-
-    console.log('Question:', data);
+    showSuccess('Question added successfully.');
   };
 
-  const handleAddAnother = () => {
-    setCurrentQuestion(Math.min(currentQuestion + 1, totalQuestions));
+  /* =========================================================
+     EDIT QUESTION
+  ========================================================= */
+
+  const handleEditQuestion = (question: Question) => {
+    setEditingQuestionId(question.id);
+
+    reset({
+      question: question.question,
+
+      option1: question.option1,
+
+      option2: question.option2,
+
+      option3: question.option3,
+
+      option4: question.option4,
+
+      correctOption: question.correct_option,
+
+      explanation: question.explanation ?? '',
+
+      difficulty: question.difficulty ?? 'easy',
+
+      topic: question.topic ?? '',
+
+      subTopic: question.sub_topic ?? '',
+
+      mediaUrl: question.media_url ?? '',
+    });
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
   };
 
-  const handlePrevious = () => {
-    setCurrentQuestion((previous) => Math.max(previous - 1, 1));
-  };
-
-  const handleNext = () => {
-    setCurrentQuestion((previous) => Math.min(previous + 1, totalQuestions));
-  };
+  /* =========================================================
+     DELETE QUESTION
+  ========================================================= */
 
   const handleDeleteQuestion = (questionId: string) => {
-    setSavedQuestions((previous) => previous.filter((question) => question.id !== questionId));
+    setQuestions((previous) => previous.filter((question) => question.id !== questionId));
+
+    if (editingQuestionId === questionId) {
+      resetQuestionForm();
+    }
+
+    showSuccess('Question deleted successfully.');
   };
 
-  const handleContinue = () => {
-    /*
-     * API PLACEHOLDER
-     *
-     * Questions will first be persisted using:
-     *
-     * POST /questions/bulk
-     *
-     * Then navigate to preview.
-     */
+  /* =========================================================
+     SAVE QUESTIONS
+  ========================================================= */
 
-    navigate(FRONTEND_ROUTES.TESTS.PREVIEW(testId ?? 'mock-test-id'));
+  const handleSaveQuestions = async () => {
+    if (!id) {
+      return;
+    }
+
+    if (questions.length === 0) {
+      showError('Please add at least one question before continuing.');
+
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      /*
+       * Remove local IDs before
+       * sending the payload.
+       *
+       * Backend creates the real
+       * question IDs.
+       */
+
+      const payload = questions.map((question) => ({
+        type: 'mcq' as const,
+
+        question: question.question,
+
+        option1: question.option1,
+
+        option2: question.option2,
+
+        option3: question.option3,
+
+        option4: question.option4,
+
+        correct_option: question.correct_option,
+
+        explanation: question.explanation ?? undefined,
+
+        difficulty: question.difficulty ?? undefined,
+
+        subject: question.subject,
+
+        media_url: question.media_url ?? undefined,
+
+        test_id: id!,
+      }));
+
+      await createQuestionsBulk(payload);
+
+      await createQuestionsBulk(payload);
+
+      await createQuestionsBulk(payload);
+    } catch (error) {
+      console.error('Failed to save questions:', error);
+
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.message;
+
+        showError(
+          typeof message === 'string' ? message : 'Unable to save questions. Please try again.',
+        );
+      } else {
+        showError('Unable to save questions. Please try again.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleExit = () => {
-    navigate(FRONTEND_ROUTES.DASHBOARD);
+  /* =========================================================
+     SAVE & CONTINUE
+  ========================================================= */
+
+  const handleContinue = async () => {
+    if (!id) {
+      return;
+    }
+
+    if (questions.length === 0) {
+      showWarning('Please add at least one question before continuing.');
+
+      return;
+    }
+
+    try {
+      setIsContinueLoading(true);
+
+      const payload = questions.map((question) => ({
+        type: 'mcq' as const,
+        question: question.question,
+        option1: question.option1,
+        option2: question.option2,
+        option3: question.option3,
+        option4: question.option4,
+        correct_option: question.correct_option,
+        explanation: question.explanation ?? undefined,
+        difficulty: question.difficulty ?? undefined,
+        subject: question.subject,
+        topic: question.topic ?? undefined,
+        sub_topic: question.sub_topic ?? undefined,
+        media_url: question.media_url ?? undefined,
+        test_id: id!,
+      }));
+
+      await createQuestionsBulk(payload);
+
+      showSuccess('Questions saved successfully.');
+
+      navigate(FRONTEND_ROUTES.TESTS.PREVIEW(id));
+    } catch (error) {
+      console.error('Failed to continue:', error);
+
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.message;
+
+        showError(
+          typeof message === 'string' ? message : 'Unable to save questions. Please try again.',
+        );
+      } else {
+        showError('Unable to save questions. Please try again.');
+      }
+    } finally {
+      setIsContinueLoading(false);
+    }
   };
+
+  /* =========================================================
+     LOADING
+  ========================================================= */
+
+  if (isTestLoading) {
+    return (
+      <main className="min-h-full bg-[#F8FAFD] px-4 py-6 sm:px-6">
+        <div className="flex min-h-[400px] items-center justify-center">
+          <p className="text-[14px] text-[#667085]">Loading test...</p>
+        </div>
+      </main>
+    );
+  }
+
+  /* =========================================================
+     ERROR
+  ========================================================= */
+
+  if (pageError || !test) {
+    return (
+      <main className="min-h-full bg-[#F8FAFD] px-4 py-6 sm:px-6">
+        <div className="rounded-xl border border-[#FECACA] bg-white p-6">
+          <p className="text-[14px] text-[#B42318]">{pageError ?? 'Test not found.'}</p>
+
+          <button
+            type="button"
+            onClick={() => navigate(FRONTEND_ROUTES.DASHBOARD)}
+            className="mt-4 text-[13px] font-medium text-[#315BEF]"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
   return (
-    <main className="min-h-full min-w-0 bg-[#F8FAFD] px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-full min-w-0 bg-[#F8FAFD] px-4 py-5 sm:px-6 sm:py-7">
       {/* =====================================================
           BREADCRUMB
       ====================================================== */}
@@ -153,359 +668,447 @@ function QuestionsPage() {
             label: 'Test Creation',
           },
           {
-            label: 'Create Test',
+            label: test.name,
           },
           {
-            label: 'Chapter Wise',
-          },
-          {
-            label: 'Questions',
+            label: 'Add Questions',
             active: true,
           },
         ]}
       />
 
       {/* =====================================================
+          PAGE HEADER
+      ====================================================== */}
+
+      <div className="mb-6">
+        <h1 className="text-[22px] font-semibold text-[#101828] sm:text-[24px]">Add Questions</h1>
+
+        <p className="mt-1 text-[13px] text-[#667085] sm:text-[14px]">
+          Add questions to your test before publishing it.
+        </p>
+      </div>
+
+      {/* =====================================================
           TEST SUMMARY
       ====================================================== */}
 
-      <section className="mb-6 rounded-xl border border-[#E4E7EC] bg-white p-5 sm:p-6">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-[#100C3D] px-3 py-1 text-[12px] font-medium text-white">
-                Chapter Wise
-              </span>
+      <section className="mb-6 rounded-xl border border-[#E4E7EC] bg-white p-4 sm:p-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryItem label="Test Name" value={test.name} />
 
-              <span className="rounded-full bg-[#D1FAE5] px-3 py-1 text-[12px] font-medium text-[#047857]">
-                Easy
-              </span>
-            </div>
+          <SummaryItem label="Subject" value={test.subject} />
 
-            <h1 className="text-[20px] font-semibold text-[#101828]">Chapter 1</h1>
-          </div>
+          <SummaryItem label="Difficulty" value={test.difficulty} />
 
-          <button
-            type="button"
-            title="Edit test"
-            className="cursor-pointer rounded-lg p-2 text-[#5B8DEF] transition hover:bg-[#F2F4FF]"
-          >
-            Edit
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryItem label="Subject" value="Maths" />
-
-          <SummaryItem label="Topic" value="Geometry" />
-
-          <SummaryItem label="Sub Topic" value="Circles" />
-
-          <div className="flex items-center justify-start gap-4 rounded-lg border border-[#EAECF0] px-4 py-3 text-[#475467]">
-            <span>
-              <strong className="text-[#101828]">60</strong> Min
-            </span>
-
-            <span className="h-5 w-px bg-[#D0D5DD]" />
-
-            <span>
-              <strong className="text-[#101828]">50</strong> Q's
-            </span>
-
-            <span className="h-5 w-px bg-[#D0D5DD]" />
-
-            <span>
-              <strong className="text-[#101828]">250</strong> Marks
-            </span>
-          </div>
+          <SummaryItem label="Questions" value={String(questions.length)} />
         </div>
       </section>
-
-      {/* =====================================================
-          QUESTION HEADER
-      ====================================================== */}
-
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-[16px] font-semibold text-[#101828]">
-          Question <span className="text-[#5B8DEF]">{currentQuestion}</span>
-          <span className="font-normal text-[#667085]">/{totalQuestions}</span>
-        </h2>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-[#E4E7EC] bg-white px-3 text-[13px] font-medium text-[#475467] hover:bg-[#F9FAFB]"
-          >
-            <Plus size={15} />
-            MCQ
-          </button>
-
-          <button
-            type="button"
-            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-[#E4E7EC] bg-white px-3 text-[13px] font-medium text-[#475467] hover:bg-[#F9FAFB]"
-          >
-            <Download size={15} />
-            CSV
-          </button>
-        </div>
-      </div>
 
       {/* =====================================================
           QUESTION FORM
       ====================================================== */}
 
       <form
-        onSubmit={handleSubmit(handleSaveQuestion)}
-        className="rounded-xl border border-[#E4E7EC] bg-white p-4 sm:p-6"
+        onSubmit={handleSubmit(handleQuestionSubmit)}
+        className="rounded-xl border border-[#E4E7EC] bg-white"
       >
-        {/* Delete all edits */}
-
-        <div className="mb-4">
-          <button
-            type="button"
-            className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-medium text-[#F04438] hover:text-[#D92D20]"
-          >
-            <Trash2 size={15} />
-            Delete All Edits
-          </button>
-        </div>
-
-        {/* Question */}
-
-        <FormLabel label="Question" required />
-
-        <textarea
-          {...register('question')}
-          placeholder="Type your question here"
-          rows={5}
-          className={`mb-6 w-full resize-y rounded-lg border bg-white px-4 py-3 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] ${
-            errors.question ? 'border-[#F04438]' : 'border-[#D0D5DD]'
-          }`}
-        />
-
-        {errors.question && <ErrorText>{errors.question.message}</ErrorText>}
-
         {/* ===================================================
-            OPTIONS
+            FORM HEADER
         ==================================================== */}
 
-        <div className="mb-7">
-          <h3 className="mb-3 text-[14px] font-semibold text-[#101828]">Type the options below</h3>
+        <div className="flex items-center justify-between border-b border-[#E4E7EC] px-4 py-4 sm:px-6">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[#344054]">
+              {editingQuestionId ? 'Edit Question' : 'Add Question'}
+            </h2>
 
-          <div className="space-y-3">
-            <OptionField
-              option="option1"
-              label="A"
-              register={register('option1')}
-              error={errors.option1?.message}
-              correctOption={watch('correctOption')}
-              onSelect={() =>
-                setValue('correctOption', 'option1', {
-                  shouldValidate: true,
-                })
-              }
-            />
-
-            <OptionField
-              option="option2"
-              label="B"
-              register={register('option2')}
-              error={errors.option2?.message}
-              correctOption={watch('correctOption')}
-              onSelect={() =>
-                setValue('correctOption', 'option2', {
-                  shouldValidate: true,
-                })
-              }
-            />
-
-            <OptionField
-              option="option3"
-              label="C"
-              register={register('option3')}
-              error={errors.option3?.message}
-              correctOption={watch('correctOption')}
-              onSelect={() =>
-                setValue('correctOption', 'option3', {
-                  shouldValidate: true,
-                })
-              }
-            />
-
-            <OptionField
-              option="option4"
-              label="D"
-              register={register('option4')}
-              error={errors.option4?.message}
-              correctOption={watch('correctOption')}
-              onSelect={() =>
-                setValue('correctOption', 'option4', {
-                  shouldValidate: true,
-                })
-              }
-            />
+            <p className="mt-1 text-[12px] text-[#98A2B3]">Create a multiple-choice question.</p>
           </div>
+
+          {editingQuestionId && (
+            <button
+              type="button"
+              onClick={resetQuestionForm}
+              className="text-[13px] font-medium text-[#667085] hover:text-[#344054]"
+            >
+              Cancel Edit
+            </button>
+          )}
         </div>
 
         {/* ===================================================
-            EXPLANATION
+            FORM BODY
         ==================================================== */}
 
-        <div className="mb-7">
-          <FormLabel label="Add Solution" />
+        <div className="space-y-6 p-4 sm:p-6">
+          {/* ================================================
+              QUESTION
+          ================================================= */}
 
-          <textarea
-            {...register('explanation')}
-            placeholder="Type explanation here"
-            rows={5}
-            className="w-full resize-y rounded-lg border border-[#D0D5DD] px-4 py-3 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF]"
-          />
-        </div>
+          <div>
+            <label htmlFor="question" className="mb-2 block text-[13px] font-medium text-[#344054]">
+              Question
+              <span className="ml-1 text-[#F04438]">*</span>
+            </label>
 
-        {/* ===================================================
-            QUESTION SETTINGS
-        ==================================================== */}
-
-        <section className="border-t border-[#E4E7EC] pt-6">
-          <h3 className="mb-5 text-[15px] font-semibold text-[#344054]">Question Settings</h3>
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <SelectField
-              label="Level of Difficulty"
-              register={register('difficulty')}
-              options={QUESTION_DIFFICULTY_OPTIONS}
+            <textarea
+              id="question"
+              rows={4}
+              placeholder="Enter question"
+              {...register('question')}
+              className={`w-full resize-none rounded-lg border bg-white px-4 py-3 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] ${
+                errors.question ? 'border-[#F04438]' : 'border-[#D0D5DD]'
+              }`}
             />
 
-            <SelectField
-              label="Topic"
-              register={register('topic')}
-              options={topics.map((topic) => ({
-                value: topic.id,
-                label: topic.name,
-              }))}
-            />
+            {errors.question && (
+              <p className="mt-1 text-[12px] text-[#F04438]">{errors.question.message}</p>
+            )}
+          </div>
 
-            <SelectField
-              label="Sub-topic"
-              register={register('subTopic')}
-              options={subTopics.map((subTopic) => ({
-                value: subTopic.id,
-                label: subTopic.name,
-              }))}
-            />
+          {/* ================================================
+              OPTIONS
+          ================================================= */}
 
-            <div>
-              <FormLabel label="Media URL" />
+          <div>
+            <label className="mb-3 block text-[13px] font-medium text-[#344054]">
+              Options
+              <span className="ml-1 text-[#F04438]">*</span>
+            </label>
 
-              <input
-                type="text"
-                {...register('mediaUrl')}
-                placeholder="Enter media URL"
-                className="h-11 w-full rounded-lg border border-[#D0D5DD] px-4 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF]"
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <OptionField
+                id="option1"
+                label="Option 1"
+                register={register('option1')}
+                error={errors.option1?.message}
+              />
+
+              <OptionField
+                id="option2"
+                label="Option 2"
+                register={register('option2')}
+                error={errors.option2?.message}
+              />
+
+              <OptionField
+                id="option3"
+                label="Option 3"
+                register={register('option3')}
+                error={errors.option3?.message}
+              />
+
+              <OptionField
+                id="option4"
+                label="Option 4"
+                register={register('option4')}
+                error={errors.option4?.message}
               />
             </div>
           </div>
-        </section>
 
-        {/* ===================================================
-            QUESTION NAVIGATION
-        ==================================================== */}
+          {/* ================================================
+              CORRECT OPTION
+          ================================================= */}
 
-        <div className="mt-7 flex items-center justify-between border-t border-[#E4E7EC] pt-5">
-          <button
-            type="button"
-            onClick={handlePrevious}
-            disabled={currentQuestion === 1}
-            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#475467] hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={17} />
-            Previous
-          </button>
+          <SelectField
+            id="correctOption"
+            label="Correct Option"
+            required
+            register={register('correctOption')}
+            options={[
+              {
+                value: 'option1',
+                label: 'Option 1',
+              },
+              {
+                value: 'option2',
+                label: 'Option 2',
+              },
+              {
+                value: 'option3',
+                label: 'Option 3',
+              },
+              {
+                value: 'option4',
+                label: 'Option 4',
+              },
+            ]}
+            error={errors.correctOption?.message}
+          />
 
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={currentQuestion === totalQuestions}
-            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#475467] hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Next
-            <ChevronRight size={17} />
-          </button>
+          {/* ================================================
+              EXPLANATION
+          ================================================= */}
+
+          <div>
+            <label
+              htmlFor="explanation"
+              className="mb-2 block text-[13px] font-medium text-[#344054]"
+            >
+              Explanation
+            </label>
+
+            <textarea
+              id="explanation"
+              rows={3}
+              placeholder="Enter explanation (optional)"
+              {...register('explanation')}
+              className="w-full resize-none rounded-lg border border-[#D0D5DD] bg-white px-4 py-3 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF]"
+            />
+          </div>
+
+          {/* ================================================
+              DIFFICULTY / TOPIC / SUB TOPIC
+          ================================================= */}
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {/* Difficulty */}
+
+            <SelectField
+              id="difficulty"
+              label="Difficulty"
+              register={register('difficulty')}
+              options={DIFFICULTY_OPTIONS}
+              error={errors.difficulty?.message}
+            />
+
+            {/* Topic */}
+
+            <div>
+              <label htmlFor="topic" className="mb-2 block text-[13px] font-medium text-[#344054]">
+                Topic
+              </label>
+
+              <div className="relative">
+                <select
+                  id="topic"
+                  {...register('topic')}
+                  disabled={isTopicsLoading || !subjectId}
+                  className={`h-11 w-full cursor-pointer appearance-none rounded-lg border bg-white px-4 pr-10 text-[14px] text-[#344054] outline-none focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] disabled:cursor-not-allowed disabled:bg-[#F9FAFB] ${
+                    errors.topic ? 'border-[#F04438]' : 'border-[#D0D5DD]'
+                  }`}
+                >
+                  <option value="">
+                    {isTopicsLoading
+                      ? 'Loading topics...'
+                      : !subjectId
+                        ? 'Loading subject...'
+                        : topics.length === 0
+                          ? 'No topics available'
+                          : 'Select Topic'}
+                  </option>
+
+                  {topics.map((topic) => (
+                    <option key={topic.id} value={topic.id}>
+                      {topic.name}
+                    </option>
+                  ))}
+                </select>
+
+                <ChevronDown
+                  size={17}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#667085]"
+                />
+              </div>
+
+              {errors.topic && (
+                <p className="mt-1 text-[12px] text-[#F04438]">{errors.topic.message}</p>
+              )}
+            </div>
+            {/* Sub Topic */}
+
+            <div>
+              <label
+                htmlFor="subTopic"
+                className="mb-2 block text-[13px] font-medium text-[#344054]"
+              >
+                Sub-topic
+              </label>
+
+              <div className="relative">
+                <select
+                  id="subTopic"
+                  {...register('subTopic')}
+                  disabled={!selectedTopic || isSubTopicsLoading}
+                  className="h-11 w-full cursor-pointer appearance-none rounded-lg border border-[#D0D5DD] bg-white px-4 pr-10 text-[14px] text-[#344054] outline-none focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] disabled:cursor-not-allowed disabled:bg-[#F9FAFB]"
+                >
+                  <option value="">
+                    {isSubTopicsLoading ? 'Loading sub-topics...' : 'Select Sub-topic'}
+                  </option>
+
+                  {subTopics.map((subTopic) => (
+                    <option key={subTopic.id} value={subTopic.id}>
+                      {subTopic.name}
+                    </option>
+                  ))}
+                </select>
+
+                <ChevronDown
+                  size={17}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#667085]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ================================================
+              MEDIA URL
+          ================================================= */}
+
+          <div>
+            <label htmlFor="mediaUrl" className="mb-2 block text-[13px] font-medium text-[#344054]">
+              Media URL
+            </label>
+
+            <input
+              id="mediaUrl"
+              type="url"
+              placeholder="https://example.com/image.jpg"
+              {...register('mediaUrl')}
+              className={`h-11 w-full rounded-lg border bg-white px-4 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] ${
+                errors.mediaUrl ? 'border-[#F04438]' : 'border-[#D0D5DD]'
+              }`}
+            />
+
+            {errors.mediaUrl && (
+              <p className="mt-1 text-[12px] text-[#F04438]">{errors.mediaUrl.message}</p>
+            )}
+          </div>
         </div>
 
         {/* ===================================================
-            BOTTOM ACTIONS
+            FORM FOOTER
         ==================================================== */}
 
-        <div className="mt-7 flex flex-col-reverse gap-3 border-t border-[#E4E7EC] pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={handleExit}
-            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg bg-[#FF6B6B] px-6 text-[14px] font-medium text-white transition hover:bg-[#F45B5B]"
-          >
-            Exit Test Creation
-          </button>
+        <div className="flex justify-end border-t border-[#E4E7EC] bg-[#FCFCFD] px-4 py-4 sm:px-6">
+          <Button type="submit" disabled={isSaving} className="!h-10 !w-auto !px-5">
+            <Plus size={16} className="mr-2" />
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleAddAnother}
-              className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-6 text-[14px] font-medium text-[#344054] hover:bg-[#F9FAFB]"
-            >
-              <Plus size={17} />
-              Add Another Question
-            </button>
-
-            <Button type="submit" className="!h-11 !w-auto !px-7">
-              Save Question
-            </Button>
-
-            <button
-              type="button"
-              onClick={handleContinue}
-              className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg bg-[#6F86F7] px-7 text-[14px] font-medium text-white transition hover:bg-[#5F77EA]"
-            >
-              Save & Continue
-            </button>
-          </div>
+            {editingQuestionId ? 'Update Question' : 'Add Question'}
+          </Button>
         </div>
       </form>
 
       {/* =====================================================
-          SAVED QUESTIONS
+          QUESTIONS LIST
       ====================================================== */}
 
-      {savedQuestions.length > 0 && (
-        <section className="mt-6 rounded-xl border border-[#E4E7EC] bg-white p-4 sm:p-6">
-          <h3 className="mb-4 text-[15px] font-semibold text-[#344054]">Added Questions</h3>
+      <section className="mt-6 rounded-xl border border-[#E4E7EC] bg-white">
+        <div className="border-b border-[#E4E7EC] px-4 py-4 sm:px-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#344054]">Added Questions</h2>
 
-          <div className="space-y-2">
-            {savedQuestions.map((question, index) => (
-              <div
-                key={question.id}
-                className="flex items-center justify-between gap-4 rounded-lg border border-[#EAECF0] px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-[12px] font-medium text-[#667085]">Question {index + 1}</p>
+              <p className="mt-1 text-[12px] text-[#98A2B3]">
+                {questions.length} question
+                {questions.length !== 1 ? 's' : ''} added
+              </p>
+            </div>
+          </div>
+        </div>
 
-                  <p title={question.question} className="truncate text-[13px] text-[#344054]">
-                    {question.question}
-                  </p>
+        {questions.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <p className="text-[14px] text-[#667085]">No questions added yet.</p>
+
+            <p className="mt-1 text-[12px] text-[#98A2B3]">
+              Add your first question using the form above.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[#E4E7EC]">
+            {questions.map((question, index) => (
+              <div key={question.id} className="p-4 sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#344054]">Question {index + 1}</p>
+
+                    <p className="mt-2 whitespace-pre-wrap text-[14px] leading-6 text-[#475467]">
+                      {question.question}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      title="Edit question"
+                      aria-label="Edit question"
+                      onClick={() => handleEditQuestion(question)}
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[#667085] transition hover:bg-[#F2F4F7] hover:text-[#344054]"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      title="Delete question"
+                      aria-label="Delete question"
+                      onClick={() => handleDeleteQuestion(question.id)}
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[#667085] transition hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  title="Delete question"
-                  onClick={() => handleDeleteQuestion(question.id)}
-                  className="shrink-0 cursor-pointer rounded-md p-2 text-[#F04438] hover:bg-[#FEF3F2]"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {/* Options */}
+
+                <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <QuestionOption
+                    label="A"
+                    value={question.option1}
+                    isCorrect={question.correct_option === 'option1'}
+                  />
+
+                  <QuestionOption
+                    label="B"
+                    value={question.option2}
+                    isCorrect={question.correct_option === 'option2'}
+                  />
+
+                  <QuestionOption
+                    label="C"
+                    value={question.option3}
+                    isCorrect={question.correct_option === 'option3'}
+                  />
+
+                  <QuestionOption
+                    label="D"
+                    value={question.option4}
+                    isCorrect={question.correct_option === 'option4'}
+                  />
+                </div>
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+
+        {/* ===================================================
+            FOOTER
+        ==================================================== */}
+
+        <div className="flex flex-col-reverse gap-3 border-t border-[#E4E7EC] bg-[#FCFCFD] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+          <button
+            type="button"
+            onClick={() => navigate(FRONTEND_ROUTES.TESTS.EDIT(id!))}
+            disabled={isContinueLoading}
+            className="h-10 cursor-pointer rounded-lg border border-[#D0D5DD] bg-white px-5 text-[13px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Back to Test
+          </button>
+
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={isContinueLoading || isSaving}
+            className="h-10 cursor-pointer rounded-lg bg-[#315BEF] px-5 text-[13px] font-medium text-white transition hover:bg-[#264DD7] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isContinueLoading ? 'Saving...' : 'Save & Continue'}
+          </button>
+        </div>
+      </section>
     </main>
   );
 }
@@ -514,12 +1117,17 @@ function QuestionsPage() {
    SUMMARY ITEM
 ========================================================= */
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-[#EAECF0] px-4 py-3">
-      <p className="mb-1 text-[11px] text-[#98A2B3]">{label}</p>
+interface SummaryItemProps {
+  label: string;
+  value: string;
+}
 
-      <p title={value} className="truncate text-[14px] font-medium text-[#344054]">
+function SummaryItem({ label, value }: SummaryItemProps) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-[#98A2B3]">{label}</p>
+
+      <p className="mt-1 truncate text-[14px] font-medium text-[#344054]" title={value}>
         {value}
       </p>
     </div>
@@ -527,115 +1135,79 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
 }
 
 /* =========================================================
-   FORM LABEL
-========================================================= */
-
-function FormLabel({ label, required = false }: { label: string; required?: boolean }) {
-  return (
-    <label className="mb-2 block text-[13px] font-medium text-[#344054]">
-      {label}
-
-      {required && <span className="ml-1 text-[#F04438]">*</span>}
-    </label>
-  );
-}
-
-/* =========================================================
-   ERROR
-========================================================= */
-
-function ErrorText({ children }: { children?: React.ReactNode }) {
-  return <p className="mb-3 text-[12px] text-[#F04438]">{children}</p>;
-}
-
-/* =========================================================
    OPTION FIELD
 ========================================================= */
 
+import type { UseFormRegisterReturn } from 'react-hook-form';
+
 interface OptionFieldProps {
-  option: 'option1' | 'option2' | 'option3' | 'option4';
-
+  id: string;
   label: string;
-
   register: UseFormRegisterReturn;
-
   error?: string;
-
-  correctOption: 'option1' | 'option2' | 'option3' | 'option4' | '';
-
-  onSelect: () => void;
 }
 
-function OptionField({
-  option,
-  label,
-  register,
-  error,
-  correctOption,
-  onSelect,
-}: OptionFieldProps) {
+const OptionField = ({ id, label, register, error }: OptionFieldProps) => {
   return (
     <div>
-      <div className="flex items-center gap-3">
-        <input
-          type="radio"
-          name="correct-option"
-          checked={correctOption === option}
-          onChange={onSelect}
-          className="h-4 w-4 cursor-pointer accent-[#5B8DEF]"
-          title={`Mark option ${label} as correct`}
-        />
+      <label htmlFor={id} className="mb-1.5 block text-[12px] font-medium text-[#344054]">
+        {label}
+      </label>
 
-        <span className="w-5 shrink-0 text-[13px] font-medium text-[#475467]">{label}</span>
+      <input
+        id={id}
+        type="text"
+        {...register}
+        className={`h-11 w-full rounded-lg border px-3 text-[14px] outline-none ${
+          error ? 'border-[#F04438]' : 'border-[#D0D5DD]'
+        }`}
+      />
 
-        <input
-          type="text"
-          placeholder="Type option here"
-          {...register}
-          className={`h-11 min-w-0 flex-1 rounded-lg border px-4 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] ${
-            error ? 'border-[#F04438]' : 'border-[#D0D5DD]'
-          }`}
-        />
-
-        <button
-          type="button"
-          title={`Delete option ${label}`}
-          className="cursor-pointer rounded-md p-2 text-[#98A2B3] hover:bg-[#F9FAFB] hover:text-[#F04438]"
-        >
-          <Trash2 size={17} />
-        </button>
-      </div>
-
-      {error && <p className="ml-12 mt-1 text-[12px] text-[#F04438]">{error}</p>}
+      {error && <p className="mt-1 text-[12px] text-[#F04438]">{error}</p>}
     </div>
   );
-}
+};
 
 /* =========================================================
    SELECT FIELD
 ========================================================= */
+
 interface SelectFieldProps {
+  id: string;
   label: string;
+  required?: boolean;
 
-  register: UseFormRegisterReturn;
+  register: ReturnType<typeof useForm<QuestionFormData>>['register'] extends (
+    ...args: never[]
+  ) => infer R
+    ? R
+    : never;
 
-  options: {
+  error?: string;
+
+  options: readonly {
     value: string;
     label: string;
   }[];
 }
-function SelectField({ label, register, options }: SelectFieldProps) {
+
+function SelectField({ id, label, required = false, register, error, options }: SelectFieldProps) {
   return (
     <div>
-      <FormLabel label={label} />
+      <label htmlFor={id} className="mb-2 block text-[13px] font-medium text-[#344054]">
+        {label}
+
+        {required && <span className="ml-1 text-[#F04438]">*</span>}
+      </label>
 
       <div className="relative">
         <select
+          id={id}
           {...register}
-          className="h-11 w-full cursor-pointer appearance-none rounded-lg border border-[#D0D5DD] bg-white px-4 pr-10 text-[14px] text-[#344054] outline-none focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF]"
+          className={`h-11 w-full cursor-pointer appearance-none rounded-lg border bg-white px-4 pr-10 text-[14px] text-[#344054] outline-none focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] ${
+            error ? 'border-[#F04438]' : 'border-[#D0D5DD]'
+          }`}
         >
-          <option value="">Select from Drop-down</option>
-
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -647,6 +1219,40 @@ function SelectField({ label, register, options }: SelectFieldProps) {
           size={17}
           className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#667085]"
         />
+      </div>
+
+      {error && <p className="mt-1 text-[12px] text-[#F04438]">{error}</p>}
+    </div>
+  );
+}
+
+/* =========================================================
+   QUESTION OPTION
+========================================================= */
+
+interface QuestionOptionProps {
+  label: string;
+  value: string;
+  isCorrect: boolean;
+}
+
+function QuestionOption({ label, value, isCorrect }: QuestionOptionProps) {
+  return (
+    <div
+      className={`rounded-lg border px-3 py-3 ${
+        isCorrect ? 'border-[#A6F4C5] bg-[#ECFDF3]' : 'border-[#E4E7EC] bg-[#FCFCFD]'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+            isCorrect ? 'bg-[#12B76A] text-white' : 'bg-[#F2F4F7] text-[#667085]'
+          }`}
+        >
+          {label}
+        </span>
+
+        <span className="min-w-0 text-[13px] text-[#475467]">{value}</span>
       </div>
     </div>
   );

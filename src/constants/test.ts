@@ -12,7 +12,7 @@ export const TEST_DIFFICULTIES = {
 } as const;
 
 export const TEST_TYPE_LABELS = {
- [TEST_TYPES.CHAPTERWISE]: 'Chapterwise',
+  [TEST_TYPES.CHAPTERWISE]: 'Chapterwise',
   [TEST_TYPES.TOPICWISE]: 'Topic Wise',
   [TEST_TYPES.PYQ]: 'PYQ',
   [TEST_TYPES.MOCK]: 'Mock Test',

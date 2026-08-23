@@ -14,8 +14,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target:
-          'https://admin-moderator-backend-staging.up.railway.app',
+        target: 'https://admin-moderator-backend-staging.up.railway.app',
 
         changeOrigin: true,
 

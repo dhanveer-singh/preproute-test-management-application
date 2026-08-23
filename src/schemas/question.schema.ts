@@ -11,32 +11,17 @@ export const questionSchema = z.object({
 
   option4: z.string().trim().min(1, 'Option 4 is required'),
 
-  correctOption: z
-    .union([
-      z.literal('option1'),
-      z.literal('option2'),
-      z.literal('option3'),
-      z.literal('option4'),
-      z.literal(''),
-    ])
-    .refine((value) => value !== '', {
-      message: 'Please select the correct option',
-    }),
+  correctOption: z.enum(['option1', 'option2', 'option3', 'option4']),
 
-  explanation: z.string(),
+  explanation: z.string().optional(),
 
-  difficulty: z.union([
-    z.literal('easy'),
-    z.literal('medium'),
-    z.literal('difficult'),
-    z.literal(''),
-  ]),
+  difficulty: z.enum(['easy', 'medium', 'difficult']),
 
-  topic: z.string(),
+  topic: z.string().optional(),
 
-  subTopic: z.string(),
+  subTopic: z.string().optional(),
 
-  mediaUrl: z.string(),
+  mediaUrl: z.string().optional().or(z.literal('')),
 });
 
-export type QuestionSchemaData = z.infer<typeof questionSchema>;
+export type QuestionFormData = z.infer<typeof questionSchema>;

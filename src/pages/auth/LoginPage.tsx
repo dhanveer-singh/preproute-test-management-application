@@ -14,9 +14,7 @@ import { loginSchema } from '@/schemas/auth.schema';
 
 import { login } from '@/services/authApi';
 
-import type {
-  LoginFormData,
-} from '@/types/auth';
+import type { LoginFormData } from '@/types/auth';
 
 import { setToken } from '@/utils/storage';
 import { showSuccess } from '@/utils/toast';
@@ -27,13 +25,9 @@ function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: {
-      errors,
-      isSubmitting,
-    },
+    formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
-    resolver:
-      zodResolver(loginSchema),
+    resolver: zodResolver(loginSchema),
 
     defaultValues: {
       userId: '',
@@ -41,27 +35,17 @@ function LoginPage() {
     },
   });
 
-  const onSubmit = async (
-    data: LoginFormData,
-  ) => {
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      const response =
-        await login(data);
+      const response = await login(data);
 
-      setToken(
-        response.data.token,
-      );
+      setToken(response.data.token);
 
-      showSuccess(
-        response.message,
-      );
+      showSuccess(response.message);
 
-      navigate(
-        FRONTEND_ROUTES.DASHBOARD,
-        {
-          replace: true,
-        },
-      );
+      navigate(FRONTEND_ROUTES.DASHBOARD, {
+        replace: true,
+      });
     } catch {
       /*
        * API error handling is handled
@@ -84,40 +68,24 @@ function LoginPage() {
         <section className="flex w-full justify-center lg:w-1/2">
           <div className="min-h-[calc(100vh-36px)] w-full max-w-177.5 rounded-lg border border-[#9CC5FF] bg-white px-8 py-12 sm:px-12 lg:px-24.75">
             <div className="flex h-full flex-col justify-center rounded-lg">
-              <img
-                src={logo}
-                alt="Preproute"
-                className="mb-7.5 h-auto w-35 object-contain"
-              />
+              <img src={logo} alt="Preproute" className="mb-7.5 h-auto w-35 object-contain" />
 
               <div className="mb-7.5">
-                <h1 className="text-[20px] font-semibold leading-7 text-[#344054]">
-                  Login
-                </h1>
+                <h1 className="text-[20px] font-semibold leading-7 text-[#344054]">Login</h1>
 
                 <p className="mt-5 text-[13px] leading-5 text-[#475467]">
                   Use your company provided Login credentials
                 </p>
               </div>
 
-              <form
-                onSubmit={handleSubmit(
-                  onSubmit,
-                )}
-                className="space-y-8"
-              >
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                 <Input
                   id="userId"
                   label="User ID"
                   placeholder="Enter User ID"
                   autoComplete="username"
-                  {...register(
-                    'userId',
-                  )}
-                  error={
-                    errors.userId
-                      ?.message
-                  }
+                  {...register('userId')}
+                  error={errors.userId?.message}
                 />
 
                 <Input
@@ -126,13 +94,8 @@ function LoginPage() {
                   label="Password"
                   placeholder="Enter Password"
                   autoComplete="current-password"
-                  {...register(
-                    'password',
-                  )}
-                  error={
-                    errors.password
-                      ?.message
-                  }
+                  {...register('password')}
+                  error={errors.password?.message}
                 />
 
                 <button
@@ -142,15 +105,8 @@ function LoginPage() {
                   Forgot password?
                 </button>
 
-                <Button
-                  type="submit"
-                  disabled={
-                    isSubmitting
-                  }
-                >
-                  {isSubmitting
-                    ? 'Logging in...'
-                    : 'Login'}
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Logging in...' : 'Login'}
                 </Button>
               </form>
             </div>

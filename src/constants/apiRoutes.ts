@@ -1,26 +1,70 @@
-const API = '/api';
+/* =========================================================
+   AUTH
+========================================================= */
 
 const AUTH = {
-  LOGIN: `${API}/auth/login`,
+  LOGIN: `/auth/login`,
 };
+
+/* =========================================================
+   SUBJECTS
+========================================================= */
+
+const SUBJECTS = {
+  GET_ALL: `/subjects`,
+};
+
+/* =========================================================
+   TOPICS
+========================================================= */
+
+const TOPICS = {
+  GET_BY_SUBJECT: (subjectId: string) => `/topics/subject/${subjectId}`,
+};
+
+/* =========================================================
+   SUB-TOPICS
+========================================================= */
+
+const SUB_TOPICS = {
+  GET_BY_TOPICS: `/sub-topics/multi-topics`,
+};
+
+/* =========================================================
+   TESTS
+========================================================= */
 
 const TESTS = {
-  GET_ALL: `${API}/tests`,
-  CREATE: `${API}/tests`,
-  GET_BY_ID: (id: string) => `${API}/tests/${id}`,
-  UPDATE: (id: string) => `${API}/tests/${id}`,
-  DELETE: (id: string) => `${API}/tests/${id}`,
+  GET_ALL: `/tests`,
+
+  CREATE: `/tests`,
+
+  GET_BY_ID: (id: string) => `/tests/${id}`,
+
+  UPDATE: (id: string) => `/tests/${id}`,
+
+  DELETE: (id: string) => `/tests/${id}`,
 };
 
+/* =========================================================
+   QUESTIONS
+========================================================= */
+
 const QUESTIONS = {
-  GET_ALL: (testId: string) => `${API}/tests/${testId}/questions`,
-  CREATE: (testId: string) => `${API}/tests/${testId}/questions`,
-  UPDATE: (testId: string, questionId: string) => `${API}/tests/${testId}/questions/${questionId}`,
-  DELETE: (testId: string, questionId: string) => `${API}/tests/${testId}/questions/${questionId}`,
+  CREATE_BULK: `/questions/bulk`,
+
+  FETCH_BULK: `/questions/fetchBulk`,
 };
+
+/* =========================================================
+   API ENDPOINTS
+========================================================= */
 
 const APIS = {
   AUTH,
+  SUBJECTS,
+  TOPICS,
+  SUB_TOPICS,
   TESTS,
   QUESTIONS,
 };

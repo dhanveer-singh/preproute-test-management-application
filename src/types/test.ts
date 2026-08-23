@@ -129,6 +129,8 @@ export interface CreateTestPayload {
    UPDATE TEST PAYLOAD
 ========================================================= */
 
+export type TestStatus = 'live' | 'unpublished' | 'scheduled' | 'expired' | 'draft';
+
 export interface UpdateTestPayload {
   name?: string;
 
@@ -138,5 +140,33 @@ export interface UpdateTestPayload {
 
   total_marks?: number;
 
-  status?: string;
+  status?: TestStatus;
+}
+
+/* =========================================================
+   TEST API RESPONSES
+========================================================= */
+
+export interface GetTestsResponse {
+  status: string;
+  message: string;
+  data: Test[];
+}
+
+export interface GetTestResponse {
+  status: string;
+  message: string;
+  data: Test;
+}
+
+export interface CreateTestResponse {
+  status: string;
+  message: string;
+  data: Test;
+}
+
+export interface UpdateTestResponse {
+  status: string;
+  message: string;
+  data: Test;
 }

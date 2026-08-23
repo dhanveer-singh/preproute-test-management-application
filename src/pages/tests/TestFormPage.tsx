@@ -1,16 +1,30 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ChevronDown } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import Breadcrumb from '@/components/Breadcrumb';
 import Button from '@/components/Button';
+
 import FRONTEND_ROUTES from '@/constants/frontendRoutes';
 import { DIFFICULTY_OPTIONS, TEST_TYPE_OPTIONS } from '@/constants/test';
-import { MOCK_SUBJECTS, MOCK_SUB_TOPICS, MOCK_TOPICS } from '@/mockData/testData';
+
+import { getSubjects } from '@/services/subjectApi';
+
+import { getSubTopicsByTopics, getTopicsBySubject } from '@/services/topicApi';
+
+import { createTest, updateTest } from '@/services/testApi';
+
+import { showError, showSuccess, showWarning } from '@/utils/toast';
+
 import { testFormSchema, type TestFormData, type TestFormInput } from '@/schemas/test.schema';
 
-import Breadcrumb from '@/components/Breadcrumb';
+import type { CreateTestPayload, Subject, SubTopic, Topic } from '@/types/test';
+
+/* =========================================================
+   PAGE
+========================================================= */
 
 function TestFormPage() {
   const navigate = useNavigate();
@@ -18,10 +32,15 @@ function TestFormPage() {
 
   const isEditMode = Boolean(id);
 
+  /* =========================================================
+     FORM
+  ========================================================= */
+
   const {
     register,
     handleSubmit,
     watch,
+    getValues,
     setValue,
     formState: { errors },
   } = useForm<TestFormInput, unknown, TestFormData>({
@@ -47,59 +66,302 @@ function TestFormPage() {
     },
   });
 
+  /* =========================================================
+     WATCH VALUES
+  ========================================================= */
+
   const selectedSubject = watch('subject');
   const selectedTopics = watch('topics');
   const selectedSubTopics = watch('subTopics');
 
+  /* =========================================================
+     SUBJECT STATE
+  ========================================================= */
+
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+
+  const [isSubjectsLoading, setIsSubjectsLoading] = useState(false);
+
+  const [subjectsError, setSubjectsError] = useState<string | null>(null);
+
+  /* =========================================================
+     TOPIC STATE
+  ========================================================= */
+
+  const [topics, setTopics] = useState<Topic[]>([]);
+
+  const [isTopicsLoading, setIsTopicsLoading] = useState(false);
+
+  const [topicsError, setTopicsError] = useState<string | null>(null);
+
+  /* =========================================================
+     SUB-TOPIC STATE
+  ========================================================= */
+
+  const [subTopics, setSubTopics] = useState<SubTopic[]>([]);
+
+  const [isSubTopicsLoading, setIsSubTopicsLoading] = useState(false);
+
+  const [subTopicsError, setSubTopicsError] = useState<string | null>(null);
+
+  /* =========================================================
+     DROPDOWN STATE
+  ========================================================= */
+
   const [topicMenuOpen, setTopicMenuOpen] = useState(false);
+
   const [subTopicMenuOpen, setSubTopicMenuOpen] = useState(false);
 
-  const availableTopics = useMemo(
-    () => MOCK_TOPICS.filter((topic) => topic.subject_id === selectedSubject),
-    [selectedSubject],
-  );
+  /* =========================================================
+     SUBMIT STATE
+  ========================================================= */
 
-  const availableSubTopics = useMemo(
-    () => MOCK_SUB_TOPICS.filter((subTopic) => selectedTopics.includes(subTopic.topic_id)),
-    [selectedTopics],
-  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedTopicLabels = useMemo(
-    () =>
-      availableTopics
-        .filter((topic) => selectedTopics.includes(topic.id))
-        .map((topic) => topic.name),
-    [availableTopics, selectedTopics],
-  );
+  /* =========================================================
+     FETCH SUBJECTS
+  ========================================================= */
 
-  const selectedSubTopicLabels = useMemo(
-    () =>
-      availableSubTopics
-        .filter((subTopic) => selectedSubTopics.includes(subTopic.id))
-        .map((subTopic) => subTopic.name),
-    [availableSubTopics, selectedSubTopics],
-  );
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchSubjects = async () => {
+      try {
+        setIsSubjectsLoading(true);
+        setSubjectsError(null);
+
+        const data = await getSubjects();
+
+        if (mounted) {
+          setSubjects(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch subjects:', error);
+
+        if (mounted) {
+          setSubjects([]);
+          setSubjectsError('Unable to load subjects. Please try again.');
+        }
+      } finally {
+        if (mounted) {
+          setIsSubjectsLoading(false);
+        }
+      }
+    };
+
+    fetchSubjects();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /* =========================================================
+     FETCH TOPICS BY SUBJECT
+  ========================================================= */
+
+  useEffect(() => {
+    // No subject selected
+    if (!selectedSubject) {
+      setTopics([]);
+      setSubTopics([]);
+
+      setTopicsError(null);
+      setSubTopicsError(null);
+
+      setIsTopicsLoading(false);
+      setIsSubTopicsLoading(false);
+
+      return;
+    }
+
+    let mounted = true;
+
+    const fetchTopics = async () => {
+      try {
+        setIsTopicsLoading(true);
+        setTopicsError(null);
+
+        console.log('Fetching topics for subject:', selectedSubject);
+
+        const data = await getTopicsBySubject(selectedSubject);
+
+        console.log('Topics API response:', data);
+
+        if (!mounted) {
+          return;
+        }
+
+        setTopics(data);
+
+        // Remove topics that don't belong
+        // to the newly selected subject.
+        const availableTopicIds = new Set(data.map((topic) => topic.id));
+
+        const validSelectedTopics = selectedTopics.filter((topicId) =>
+          availableTopicIds.has(topicId),
+        );
+
+        if (validSelectedTopics.length !== selectedTopics.length) {
+          setValue('topics', validSelectedTopics, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch topics:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setTopics([]);
+
+        setTopicsError('Unable to load topics. Please try again.');
+
+        showError('Unable to load topics.');
+      } finally {
+        if (mounted) {
+          setIsTopicsLoading(false);
+        }
+      }
+    };
+
+    fetchTopics();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedSubject, setValue]);
+
+  /* =========================================================
+     FETCH SUB-TOPICS
+  ========================================================= */
+
+  useEffect(() => {
+    if (!selectedTopics.length) {
+      setSubTopics([]);
+      setSubTopicsError(null);
+      setIsSubTopicsLoading(false);
+
+      return;
+    }
+
+    let mounted = true;
+
+    const fetchSubTopics = async () => {
+      try {
+        setIsSubTopicsLoading(true);
+        setSubTopicsError(null);
+
+        console.log('Fetching sub-topics for topics:', selectedTopics);
+
+        const data = await getSubTopicsByTopics(selectedTopics);
+
+        console.log('Sub-topics API response:', data);
+
+        if (!mounted) {
+          return;
+        }
+
+        setSubTopics(data);
+
+        // Remove previously selected sub-topics
+        // which are no longer available.
+        const availableSubTopicIds = new Set(data.map((subTopic) => subTopic.id));
+
+        const validSelectedSubTopics = selectedSubTopics.filter((subTopicId) =>
+          availableSubTopicIds.has(subTopicId),
+        );
+
+        if (validSelectedSubTopics.length !== selectedSubTopics.length) {
+          setValue('subTopics', validSelectedSubTopics, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch sub-topics:', error);
+
+        if (!mounted) {
+          return;
+        }
+
+        setSubTopics([]);
+
+        setSubTopicsError('Unable to load sub-topics. Please try again.');
+
+        showError('Unable to load sub-topics.');
+      } finally {
+        if (mounted) {
+          setIsSubTopicsLoading(false);
+        }
+      }
+    };
+
+    fetchSubTopics();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedTopics, selectedSubTopics, setValue]);
+
+  /* =========================================================
+     SELECTED TOPIC LABELS
+  ========================================================= */
+
+  const selectedTopicLabels = topics
+    .filter((topic) => selectedTopics.includes(topic.id))
+    .map((topic) => topic.name);
+
+  /* =========================================================
+     SELECTED SUB-TOPIC LABELS
+  ========================================================= */
+
+  const selectedSubTopicLabels = subTopics
+    .filter((subTopic) => selectedSubTopics.includes(subTopic.id))
+    .map((subTopic) => subTopic.name);
+
+  /* =========================================================
+     SUBJECT CHANGE
+  ========================================================= */
 
   const handleSubjectChange = (subjectId: string) => {
     setValue('subject', subjectId, {
       shouldValidate: true,
+      shouldDirty: true,
     });
 
+    // Clear dependent fields
     setValue('topics', [], {
       shouldValidate: true,
+      shouldDirty: true,
     });
 
     setValue('subTopics', [], {
       shouldValidate: true,
+      shouldDirty: true,
     });
 
+    // Clear dependent API data
+    setTopics([]);
+    setSubTopics([]);
+
+    setTopicsError(null);
+    setSubTopicsError(null);
+
+    // Close menus
     setTopicMenuOpen(false);
     setSubTopicMenuOpen(false);
   };
 
+  /* =========================================================
+     TOGGLE TOPIC
+  ========================================================= */
+
   const toggleTopic = (topicId: string) => {
     const updatedTopics = selectedTopics.includes(topicId)
-      ? selectedTopics.filter((id) => id !== topicId)
+      ? selectedTopics.filter((value) => value !== topicId)
       : [...selectedTopics, topicId];
 
     setValue('topics', updatedTopics, {
@@ -107,69 +369,200 @@ function TestFormPage() {
       shouldDirty: true,
     });
 
-    const validSubTopicIds = MOCK_SUB_TOPICS.filter((subTopic) =>
-      updatedTopics.includes(subTopic.topic_id),
-    ).map((subTopic) => subTopic.id);
+    setValue('subTopics', [], {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
 
-    setValue(
-      'subTopics',
-      selectedSubTopics.filter((id) => validSubTopicIds.includes(id)),
-      {
-        shouldDirty: true,
-      },
-    );
+    setSubTopics([]);
   };
+  /* =========================================================
+     TOGGLE SUB-TOPIC
+  ========================================================= */
 
   const toggleSubTopic = (subTopicId: string) => {
     const updatedSubTopics = selectedSubTopics.includes(subTopicId)
-      ? selectedSubTopics.filter((id) => id !== subTopicId)
+      ? selectedSubTopics.filter((value) => value !== subTopicId)
       : [...selectedSubTopics, subTopicId];
 
     setValue('subTopics', updatedSubTopics, {
+      shouldValidate: true,
       shouldDirty: true,
     });
   };
 
-  const handleFormSubmit = (data: TestFormData) => {
-    /*
-     * UI ONLY
-     *
-     * API integration will be added later.
-     *
-     * Create:
-     * POST /tests
-     *
-     * Edit:
-     * PUT /tests/:id
-     */
+  /* =========================================================
+     BUILD CREATE PAYLOAD
+  ========================================================= */
 
-    console.log('Test form data:', data);
+  const buildCreatePayload = (
+    data: TestFormData,
+    status: 'live' | 'unpublished' | 'scheduled' | 'expired' | 'draft',
+  ): CreateTestPayload => {
+    return {
+      name: data.name,
 
-    const testId = id ?? 'mock-test-id';
+      type: data.type,
 
-    navigate(FRONTEND_ROUTES.TESTS.QUESTIONS(testId));
+      subject: data.subject,
+
+      topics: data.topics,
+
+      sub_topics: data.subTopics,
+
+      correct_marks: Number(data.correctMarks),
+
+      wrong_marks: Number(data.wrongMarks),
+
+      unattempt_marks: Number(data.unattemptMarks),
+
+      difficulty: data.difficulty,
+
+      total_time: Number(data.totalTime),
+
+      total_marks: Number(data.totalMarks),
+
+      total_questions: Number(data.totalQuestions),
+
+      status,
+    };
   };
 
-  const handleSaveAsDraft = () => {
-    /*
-     * UI ONLY
-     *
-     * Later this will call:
-     *
-     * POST /tests
-     *
-     * with status: "draft"
-     */
+  /* =========================================================
+     CREATE / UPDATE TEST
+  ========================================================= */
 
-    console.log('Save as draft');
+  const handleFormSubmit = async (data: TestFormData) => {
+    try {
+      setIsSubmitting(true);
+
+      /* =====================================================
+         EDIT TEST
+      ====================================================== */
+
+      if (isEditMode && id) {
+        await updateTest(id, {
+          name: data.name,
+
+          total_questions: Number(data.totalQuestions),
+
+          total_marks: Number(data.totalMarks),
+        });
+
+        navigate(FRONTEND_ROUTES.TESTS.QUESTIONS(id));
+
+        return;
+      }
+
+      /* =====================================================
+         CREATE TEST
+      ====================================================== */
+
+      const payload = buildCreatePayload(data, 'draft');
+
+      const createdTest = await createTest(payload);
+
+      showSuccess('Test created successfully.');
+
+      navigate(FRONTEND_ROUTES.TESTS.QUESTIONS(createdTest.id));
+    } catch (error) {
+      console.error('Failed to save test:', error);
+      showError('Unable to save the test. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  /* =========================================================
+     SAVE AS DRAFT
+  ========================================================= */
+
+  const handleSaveAsDraft = async () => {
+    const values = getValues();
+
+    try {
+      setIsSubmitting(true);
+
+      /* =====================================================
+         UPDATE EXISTING TEST
+      ====================================================== */
+
+      if (isEditMode && id) {
+        await updateTest(id, {
+          name: values.name,
+          total_questions: Number(values.totalQuestions),
+          total_marks: Number(values.totalMarks),
+          status: 'draft',
+        });
+
+        showSuccess('Test saved as draft.');
+
+        navigate(FRONTEND_ROUTES.DASHBOARD);
+
+        return;
+      }
+
+      /* =====================================================
+         CREATE NEW DRAFT
+      ====================================================== */
+
+      const payload: CreateTestPayload = {
+        name: values.name,
+
+        type: values.type,
+
+        subject: values.subject,
+
+        topics: values.topics,
+
+        sub_topics: values.subTopics,
+
+        correct_marks: Number(values.correctMarks),
+
+        wrong_marks: Number(values.wrongMarks),
+
+        unattempt_marks: Number(values.unattemptMarks),
+
+        difficulty: values.difficulty,
+
+        total_time: Number(values.totalTime),
+
+        total_marks: Number(values.totalMarks),
+
+        total_questions: Number(values.totalQuestions),
+
+        status: 'draft',
+      };
+
+      await createTest(payload);
+      showSuccess('Test saved as draft.');
+      navigate(FRONTEND_ROUTES.DASHBOARD);
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      showError('Unable to save the draft. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /* =========================================================
+     CANCEL
+  ========================================================= */
 
   const handleCancel = () => {
     navigate(FRONTEND_ROUTES.DASHBOARD);
   };
 
+  /* =========================================================
+     RENDER
+  ========================================================= */
+
   return (
     <main className="min-h-full min-w-0 bg-[#F8FAFD] px-4 py-5 sm:px-6 sm:py-7">
+      {/* =====================================================
+          BREADCRUMB
+      ====================================================== */}
+
       <Breadcrumb
         items={[
           {
@@ -184,6 +577,7 @@ function TestFormPage() {
           },
         ]}
       />
+
       {/* =====================================================
           PAGE HEADER
       ====================================================== */}
@@ -210,9 +604,9 @@ function TestFormPage() {
         onSubmit={handleSubmit(handleFormSubmit)}
         className="overflow-hidden rounded-xl border border-[#E4E7EC] bg-white"
       >
-        {/* =====================================================
+        {/* ===================================================
             TEST TYPE
-        ====================================================== */}
+        ==================================================== */}
 
         <div className="border-b border-[#E4E7EC] px-4 py-4 sm:px-6 sm:py-5">
           <p className="mb-3 text-[13px] font-medium text-[#344054]">Test Type</p>
@@ -225,13 +619,14 @@ function TestFormPage() {
                 <button
                   key={testType.value}
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() =>
                     setValue('type', testType.value, {
                       shouldValidate: true,
                       shouldDirty: true,
                     })
                   }
-                  className={`cursor-pointer rounded-lg px-4 py-2.5 text-[13px] font-medium transition ${
+                  className={`cursor-pointer rounded-lg px-4 py-2.5 text-[13px] font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
                     selected
                       ? 'bg-[#5B8DEF] text-white shadow-sm'
                       : 'border border-[#D0D5DD] bg-white text-[#475467] hover:bg-[#F9FAFB]'
@@ -246,14 +641,14 @@ function TestFormPage() {
           {errors.type && <p className="mt-2 text-[12px] text-[#F04438]">{errors.type.message}</p>}
         </div>
 
-        {/* =====================================================
+        {/* ===================================================
             FORM CONTENT
-        ====================================================== */}
+        ==================================================== */}
 
         <div className="space-y-8 p-4 sm:p-6">
-          {/* ===================================================
+          {/* =================================================
               TEST DETAILS
-          ==================================================== */}
+          ================================================== */}
 
           <section>
             <div className="mb-4">
@@ -265,7 +660,9 @@ function TestFormPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              {/* Test Name */}
+              {/* =============================================
+                  TEST NAME
+              ============================================== */}
 
               <div>
                 <label
@@ -280,8 +677,9 @@ function TestFormPage() {
                   id="test-name"
                   type="text"
                   placeholder="Enter test name"
+                  disabled={isSubmitting}
                   {...register('name')}
-                  className={`h-11 w-full rounded-lg border bg-white px-4 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] ${
+                  className={`h-11 w-full rounded-lg border bg-white px-4 text-[14px] text-[#344054] outline-none placeholder:text-[#98A2B3] focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] disabled:cursor-not-allowed disabled:bg-[#F9FAFB] ${
                     errors.name ? 'border-[#F04438]' : 'border-[#D0D5DD]'
                   }`}
                 />
@@ -291,7 +689,9 @@ function TestFormPage() {
                 )}
               </div>
 
-              {/* Subject */}
+              {/* =============================================
+                  SUBJECT
+              ============================================== */}
 
               <div>
                 <label
@@ -307,13 +707,16 @@ function TestFormPage() {
                     id="subject"
                     value={selectedSubject}
                     onChange={(event) => handleSubjectChange(event.target.value)}
-                    className={`h-11 w-full cursor-pointer appearance-none rounded-lg border bg-white px-4 pr-10 text-[14px] text-[#344054] outline-none focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] ${
+                    disabled={isSubjectsLoading || isSubmitting}
+                    className={`h-11 w-full cursor-pointer appearance-none rounded-lg border bg-white px-4 pr-10 text-[14px] text-[#344054] outline-none focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] disabled:cursor-not-allowed disabled:bg-[#F9FAFB] disabled:text-[#98A2B3] ${
                       errors.subject ? 'border-[#F04438]' : 'border-[#D0D5DD]'
                     }`}
                   >
-                    <option value="">Select Subject</option>
+                    <option value="">
+                      {isSubjectsLoading ? 'Loading subjects...' : 'Select Subject'}
+                    </option>
 
-                    {MOCK_SUBJECTS.map((subject) => (
+                    {subjects.map((subject) => (
                       <option key={subject.id} value={subject.id}>
                         {subject.name}
                       </option>
@@ -329,51 +732,69 @@ function TestFormPage() {
                 {errors.subject && (
                   <p className="mt-1 text-[12px] text-[#F04438]">{errors.subject.message}</p>
                 )}
+
+                {subjectsError && (
+                  <p className="mt-1 text-[12px] text-[#F04438]">{subjectsError}</p>
+                )}
               </div>
 
-              {/* Topics */}
+              {/* =============================================
+                  TOPICS
+              ============================================== */}
 
-              <MultiSelectField
-                label="Topics"
-                required
-                placeholder="Select Topics"
-                disabled={!selectedSubject}
-                isOpen={topicMenuOpen}
-                selectedLabels={selectedTopicLabels}
-                hasError={Boolean(errors.topics)}
-                onToggle={() => setTopicMenuOpen((previous) => !previous)}
-                options={availableTopics.map((topic) => ({
-                  value: topic.id,
-                  label: topic.name,
-                }))}
-                selectedValues={selectedTopics}
-                onSelect={toggleTopic}
-              />
+              <div>
+                <MultiSelectField
+                  label="Topics"
+                  required
+                  placeholder={isTopicsLoading ? 'Loading Topics...' : 'Select Topics'}
+                  disabled={!selectedSubject || isTopicsLoading || isSubmitting}
+                  isOpen={topicMenuOpen}
+                  selectedLabels={selectedTopicLabels}
+                  selectedValues={selectedTopics}
+                  hasError={Boolean(errors.topics)}
+                  onToggle={() => setTopicMenuOpen((previous) => !previous)}
+                  options={topics.map((topic) => ({
+                    value: topic.id,
+                    label: topic.name,
+                  }))}
+                  onSelect={toggleTopic}
+                />
 
-              {errors.topics && (
-                <p className="-mt-3 text-[12px] text-[#F04438] md:col-start-1">
-                  {errors.topics.message}
-                </p>
-              )}
+                {errors.topics && (
+                  <p className="mt-1 text-[12px] text-[#F04438]">{errors.topics.message}</p>
+                )}
 
-              {/* Sub Topics */}
+                {topicsError && <p className="mt-1 text-[12px] text-[#F04438]">{topicsError}</p>}
+              </div>
 
-              <MultiSelectField
-                label="Sub-topics"
-                placeholder="Select Sub-topics"
-                disabled={!selectedTopics.length}
-                isOpen={subTopicMenuOpen}
-                selectedLabels={selectedSubTopicLabels}
-                onToggle={() => setSubTopicMenuOpen((previous) => !previous)}
-                options={availableSubTopics.map((subTopic) => ({
-                  value: subTopic.id,
-                  label: subTopic.name,
-                }))}
-                selectedValues={selectedSubTopics}
-                onSelect={toggleSubTopic}
-              />
+              {/* =============================================
+                  SUB-TOPICS
+              ============================================== */}
 
-              {/* Difficulty */}
+              <div>
+                <MultiSelectField
+                  label="Sub-topics"
+                  placeholder={isSubTopicsLoading ? 'Loading Sub-topics...' : 'Select Sub-topics'}
+                  disabled={!selectedTopics.length || isSubTopicsLoading || isSubmitting}
+                  isOpen={subTopicMenuOpen}
+                  selectedLabels={selectedSubTopicLabels}
+                  selectedValues={selectedSubTopics}
+                  onToggle={() => setSubTopicMenuOpen((previous) => !previous)}
+                  options={subTopics.map((subTopic) => ({
+                    value: subTopic.id,
+                    label: subTopic.name,
+                  }))}
+                  onSelect={toggleSubTopic}
+                />
+
+                {subTopicsError && (
+                  <p className="mt-1 text-[12px] text-[#F04438]">{subTopicsError}</p>
+                )}
+              </div>
+
+              {/* =============================================
+                  DIFFICULTY
+              ============================================== */}
 
               <SelectField
                 id="difficulty"
@@ -386,9 +807,9 @@ function TestFormPage() {
             </div>
           </section>
 
-          {/* ===================================================
+          {/* =================================================
               MARKING SCHEME
-          ==================================================== */}
+          ================================================== */}
 
           <section className="border-t border-[#E4E7EC] pt-7">
             <div className="mb-4">
@@ -423,9 +844,9 @@ function TestFormPage() {
             </div>
           </section>
 
-          {/* ===================================================
+          {/* =================================================
               TEST CONFIGURATION
-          ==================================================== */}
+          ================================================== */}
 
           <section className="border-t border-[#E4E7EC] pt-7">
             <div className="mb-4">
@@ -468,22 +889,24 @@ function TestFormPage() {
         <div className="flex flex-col-reverse gap-3 border-t border-[#E4E7EC] bg-[#FCFCFD] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={handleCancel}
-            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg border border-[#D0D5DD] bg-white px-6 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB]"
+            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg border border-[#D0D5DD] bg-white px-6 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>
 
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={handleSaveAsDraft}
-            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg border border-[#D0D5DD] bg-white px-6 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB]"
+            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg border border-[#D0D5DD] bg-white px-6 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Save as Draft
+            {isSubmitting ? 'Saving...' : 'Save as Draft'}
           </button>
 
-          <Button type="submit" className="!h-11 !w-auto !px-7">
-            {isEditMode ? 'Save Changes' : 'Next: Add Questions'}
+          <Button type="submit" disabled={isSubmitting} className="!h-11 !w-auto !px-7">
+            {isSubmitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Next: Add Questions'}
           </Button>
         </div>
       </form>
@@ -497,15 +920,10 @@ function TestFormPage() {
 
 interface SelectFieldProps {
   id: string;
-
   label: string;
-
   required?: boolean;
-
   register: UseFormRegisterReturn;
-
   error?: string;
-
   options: readonly {
     value: string;
     label: string;
@@ -590,7 +1008,7 @@ function NumberField({ id, label, register, error }: NumberFieldProps) {
 }
 
 /* =========================================================
-   MULTI SELECT
+   MULTI SELECT FIELD
 ========================================================= */
 
 interface MultiSelectFieldProps {
@@ -602,11 +1020,14 @@ interface MultiSelectFieldProps {
   selectedLabels: string[];
   selectedValues: string[];
   hasError?: boolean;
+
   options: {
     value: string;
     label: string;
   }[];
+
   onToggle: () => void;
+
   onSelect: (value: string) => void;
 }
 

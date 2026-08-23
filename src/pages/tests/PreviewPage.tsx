@@ -1,5 +1,7 @@
 import { ChevronDown, ChevronLeft, Edit3, Eye, Pencil, Send } from 'lucide-react';
 
+import axios from 'axios';
+
 import { useState } from 'react';
 
 import { useNavigate, useParams } from 'react-router-dom';
@@ -11,16 +13,38 @@ import FRONTEND_ROUTES from '@/constants/frontendRoutes';
 
 import { MOCK_PREVIEW_TEST } from '@/mockData/previewData';
 
+import { updateTest } from '@/services/testApi';
+
+import { showError, showSuccess } from '@/utils/toast';
+
 import type { Question } from '@/types/question';
+
+/* =========================================================
+   PREVIEW PAGE
+========================================================= */
 
 function PreviewPage() {
   const navigate = useNavigate();
 
   const { id: testId } = useParams();
 
+  /* =========================================================
+     STATE
+  ========================================================= */
+
   const [expandedQuestions, setExpandedQuestions] = useState<string[]>([]);
 
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  /* =========================================================
+     TEMPORARY PREVIEW DATA
+  ========================================================= */
+
   const test = MOCK_PREVIEW_TEST;
+
+  /* =========================================================
+     TOGGLE QUESTION
+  ========================================================= */
 
   const toggleQuestion = (questionId: string) => {
     setExpandedQuestions((previous) =>
@@ -30,6 +54,10 @@ function PreviewPage() {
     );
   };
 
+  /* =========================================================
+     EDIT TEST
+  ========================================================= */
+
   const handleEditTest = () => {
     if (!testId) {
       return;
@@ -37,6 +65,10 @@ function PreviewPage() {
 
     navigate(FRONTEND_ROUTES.TESTS.EDIT(testId));
   };
+
+  /* =========================================================
+     EDIT QUESTIONS
+  ========================================================= */
 
   const handleEditQuestions = () => {
     if (!testId) {
@@ -46,34 +78,65 @@ function PreviewPage() {
     navigate(FRONTEND_ROUTES.TESTS.QUESTIONS(testId));
   };
 
-  const handlePublish = () => {
-    /*
-     * API PLACEHOLDER
-     *
-     * PUT /tests/:id
-     *
-     * {
-     *   status: "live"
-     * }
-     *
-     * After successful API response:
-     *
-     * navigate(FRONTEND_ROUTES.DASHBOARD);
-     */
+  /* =========================================================
+     PUBLISH TEST
+  ========================================================= */
 
-    console.log('Publish test:', test.id);
+  const handlePublish = async () => {
+    if (!testId) {
+      showError('Test ID is missing.');
 
-    navigate(FRONTEND_ROUTES.DASHBOARD);
+      return;
+    }
+
+    if (isPublishing) {
+      return;
+    }
+
+    try {
+      setIsPublishing(true);
+
+      await updateTest(testId, {
+        status: 'live',
+      });
+
+      showSuccess('Test published successfully.');
+
+      navigate(FRONTEND_ROUTES.DASHBOARD);
+    } catch (error) {
+      console.error('Failed to publish test:', error);
+
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.message;
+
+        showError(
+          typeof message === 'string' ? message : 'Unable to publish test. Please try again.',
+        );
+      } else {
+        showError('Unable to publish test. Please try again.');
+      }
+    } finally {
+      setIsPublishing(false);
+    }
   };
+
+  /* =========================================================
+     BACK TO QUESTIONS
+  ========================================================= */
 
   const handleBack = () => {
     if (!testId) {
       navigate(FRONTEND_ROUTES.DASHBOARD);
+
       return;
     }
 
     navigate(FRONTEND_ROUTES.TESTS.QUESTIONS(testId));
   };
+
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
   return (
     <main className="min-h-full min-w-0 bg-[#F8FAFD] px-4 py-5 sm:px-6 lg:px-8">
@@ -133,16 +196,23 @@ function PreviewPage() {
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#344054] transition hover:bg-[#F9FAFB]"
+            disabled={isPublishing}
+            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ChevronLeft size={16} />
             Back
           </button>
 
-          <Button type="button" onClick={handlePublish} className="!h-10 !w-auto !px-5">
+          <Button
+            type="button"
+            onClick={handlePublish}
+            disabled={isPublishing}
+            className="!h-10 !w-auto !px-5"
+          >
             <span className="inline-flex items-center gap-2">
               <Send size={15} />
-              Publish Test
+
+              {isPublishing ? 'Publishing...' : 'Publish Test'}
             </span>
           </Button>
         </div>
@@ -163,8 +233,9 @@ function PreviewPage() {
           <button
             type="button"
             onClick={handleEditTest}
+            disabled={isPublishing}
             title="Edit test details"
-            className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#344054] transition hover:bg-[#F9FAFB]"
+            className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Pencil size={15} />
             Edit Test
@@ -220,7 +291,8 @@ function PreviewPage() {
         <button
           type="button"
           onClick={handleEditQuestions}
-          className="inline-flex h-9 w-fit cursor-pointer items-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#344054] transition hover:bg-[#F9FAFB]"
+          disabled={isPublishing}
+          className="inline-flex h-9 w-fit cursor-pointer items-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-4 text-[13px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Edit3 size={15} />
           Edit Questions
@@ -255,16 +327,23 @@ function PreviewPage() {
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-5 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB]"
+          disabled={isPublishing}
+          className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#D0D5DD] bg-white px-5 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ChevronLeft size={17} />
           Back to Questions
         </button>
 
-        <Button type="button" onClick={handlePublish} className="!h-11 !w-auto !px-7">
+        <Button
+          type="button"
+          onClick={handlePublish}
+          disabled={isPublishing}
+          className="!h-11 !w-auto !px-7"
+        >
           <span className="inline-flex items-center gap-2">
             <Eye size={17} />
-            Publish Test
+
+            {isPublishing ? 'Publishing...' : 'Publish Test'}
           </span>
         </Button>
       </div>

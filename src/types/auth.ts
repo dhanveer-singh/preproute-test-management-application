@@ -8,6 +8,15 @@ export interface LoginPayload {
 }
 
 /* =========================================================
+   LOGIN FORM DATA
+========================================================= */
+
+export interface LoginFormData {
+  userId: string;
+  password: string;
+}
+
+/* =========================================================
    LOGIN USER
 ========================================================= */
 
@@ -33,7 +42,8 @@ export interface LoginResponseData {
 ========================================================= */
 
 export interface LoginResponse {
-  success: boolean;
+  success?: boolean;
+  status?: string;
   data: LoginResponseData;
   message: string;
 }

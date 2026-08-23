@@ -1,13 +1,28 @@
-const TOKEN_KEY = 'token';
+const TOKEN_KEY = 'preproute_token';
 
-export const getToken = (): string | null => {
-  return sessionStorage.getItem(TOKEN_KEY);
+export const setToken = (
+  token: string,
+): void => {
+  localStorage.setItem(
+    TOKEN_KEY,
+    token,
+  );
 };
 
-export const setToken = (token: string): void => {
-  sessionStorage.setItem(TOKEN_KEY, token);
+export const getToken = (): string | null => {
+  return localStorage.getItem(
+    TOKEN_KEY,
+  );
 };
 
 export const removeToken = (): void => {
-  sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(
+    TOKEN_KEY,
+  );
+};
+
+export const clearStorage = (): void => {
+  localStorage.removeItem(
+    TOKEN_KEY,
+  );
 };

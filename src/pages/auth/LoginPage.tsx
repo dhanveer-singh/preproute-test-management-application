@@ -1,7 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-
 import { useForm } from 'react-hook-form';
-
 import { useNavigate } from 'react-router-dom';
 
 import logo from '@/assets/images/logo.svg';
@@ -10,15 +8,18 @@ import loginIllustration from '@/assets/images/login-illustration.svg';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 
-import { loginSchema } from '@/schemas/auth.schema';
+import FRONTEND_ROUTES from '@/constants/frontendRoutes';
 
-import type { LoginFormData } from '@/schemas/auth.schema';
+import { loginSchema } from '@/schemas/auth.schema';
 
 import { login } from '@/services/authApi';
 
+import type {
+  LoginFormData,
+} from '@/types/auth';
+
 import { setToken } from '@/utils/storage';
 import { showSuccess } from '@/utils/toast';
-import FRONTEND_ROUTES from '@/constants/frontendRoutes';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -26,9 +27,13 @@ function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: {
+      errors,
+      isSubmitting,
+    },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver:
+      zodResolver(loginSchema),
 
     defaultValues: {
       userId: '',
@@ -36,21 +41,31 @@ function LoginPage() {
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (
+    data: LoginFormData,
+  ) => {
     try {
-      const response = await login(data);
+      const response =
+        await login(data);
 
-      setToken(response.data.token);
+      setToken(
+        response.data.token,
+      );
 
-      showSuccess(response.message);
+      showSuccess(
+        response.message,
+      );
 
-      navigate(FRONTEND_ROUTES.DASHBOARD, {
-        replace: true,
-      });
+      navigate(
+        FRONTEND_ROUTES.DASHBOARD,
+        {
+          replace: true,
+        },
+      );
     } catch {
       /*
-       * Common API errors are handled
-       * by the API layer.
+       * API error handling is handled
+       * centrally/by the API layer.
        */
     }
   };
@@ -58,10 +73,6 @@ function LoginPage() {
   return (
     <main className="min-h-screen bg-[#F7F9FC] px-[20px] py-[18px]">
       <div className="flex min-h-[calc(100vh-36px)] w-full items-center overflow-hidden rounded-xl">
-        {/* =====================================================
-            LEFT ILLUSTRATION
-        ====================================================== */}
-
         <section className="hidden flex-1 items-center justify-center lg:flex">
           <img
             src={loginIllustration}
@@ -70,42 +81,44 @@ function LoginPage() {
           />
         </section>
 
-        {/* =====================================================
-            LOGIN FORM
-        ====================================================== */}
-
         <section className="flex w-full justify-center lg:w-1/2">
           <div className="min-h-[calc(100vh-36px)] w-full max-w-177.5 rounded-lg border border-[#9CC5FF] bg-white px-8 py-12 sm:px-12 lg:px-24.75">
             <div className="flex h-full flex-col justify-center rounded-lg">
-              {/* LOGO */}
-
-              <img src={logo} alt="Preproute" className="mb-7.5 h-auto w-35 object-contain" />
-
-              {/* HEADING */}
+              <img
+                src={logo}
+                alt="Preproute"
+                className="mb-7.5 h-auto w-35 object-contain"
+              />
 
               <div className="mb-7.5">
-                <h1 className="text-[20px] font-semibold leading-7 text-[#344054]">Login</h1>
+                <h1 className="text-[20px] font-semibold leading-7 text-[#344054]">
+                  Login
+                </h1>
 
                 <p className="mt-5 text-[13px] leading-5 text-[#475467]">
                   Use your company provided Login credentials
                 </p>
               </div>
 
-              {/* FORM */}
-
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                {/* USER ID */}
-
+              <form
+                onSubmit={handleSubmit(
+                  onSubmit,
+                )}
+                className="space-y-8"
+              >
                 <Input
                   id="userId"
                   label="User ID"
                   placeholder="Enter User ID"
                   autoComplete="username"
-                  {...register('userId')}
-                  error={errors.userId?.message}
+                  {...register(
+                    'userId',
+                  )}
+                  error={
+                    errors.userId
+                      ?.message
+                  }
                 />
-
-                {/* PASSWORD */}
 
                 <Input
                   id="password"
@@ -113,29 +126,32 @@ function LoginPage() {
                   label="Password"
                   placeholder="Enter Password"
                   autoComplete="current-password"
-                  {...register('password')}
-                  error={errors.password?.message}
+                  {...register(
+                    'password',
+                  )}
+                  error={
+                    errors.password
+                      ?.message
+                  }
                 />
-
-                {/* FORGOT PASSWORD */}
 
                 <button
                   type="button"
-                  className="-mt-3 cursor-pointer text-left text-[14px] font-medium text-[#2563EB] hover:underline"
-                  onClick={() => {
-                    /*
-                     * Forgot password flow is not
-                     * included in the provided API
-                     * documentation yet.
-                     */
-                  }}
+                  className="-mt-3 text-left text-[14px] font-medium text-[#2563EB] hover:underline"
                 >
                   Forgot password?
                 </button>
 
-                {/* LOGIN */}
-
-                <Button type="submit">Login</Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    isSubmitting
+                  }
+                >
+                  {isSubmitting
+                    ? 'Logging in...'
+                    : 'Login'}
+                </Button>
               </form>
             </div>
           </div>

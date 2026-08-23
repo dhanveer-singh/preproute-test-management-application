@@ -7,17 +7,17 @@ function ProtectedRoute() {
   const token = getToken();
   const location = useLocation();
 
-  // if (!token) {
-  //   return (
-  //     <Navigate
-  //       to={FRONTEND_ROUTES.AUTH.LOGIN}
-  //       replace
-  //       state={{
-  //         from: location,
-  //       }}
-  //     />
-  //   );
-  // }
+  if (!token) {
+    return (
+      <Navigate
+        to={FRONTEND_ROUTES.AUTH.LOGIN}
+        replace
+        state={{
+          from: location,
+        }}
+      />
+    );
+  }
 
   return <Outlet />;
 }

@@ -10,7 +10,6 @@ import { DIFFICULTY_OPTIONS, TEST_TYPE_OPTIONS } from '@/constants/test';
 import { MOCK_SUBJECTS, MOCK_SUB_TOPICS, MOCK_TOPICS } from '@/mockData/testData';
 import { testFormSchema, type TestFormData, type TestFormInput } from '@/schemas/test.schema';
 
-import type { Subject, Topic, SubTopic } from '@/types/test';
 import Breadcrumb from '@/components/Breadcrumb';
 
 function TestFormPage() {
@@ -507,7 +506,7 @@ interface SelectFieldProps {
 
   error?: string;
 
-  options: {
+  options: readonly {
     value: string;
     label: string;
   }[];

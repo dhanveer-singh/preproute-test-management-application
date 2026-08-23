@@ -1,4 +1,3 @@
-import type { Question } from '@/types/question';
 import type { PreviewTestData } from '@/types/preview';
 
 export const MOCK_PREVIEW_TEST: PreviewTestData = {

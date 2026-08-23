@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft, ChevronRight, Edit3, Eye, Pencil, Send } from 'lucide-react';
+import { ChevronDown, ChevronLeft, Edit3, Eye, Pencil, Send } from 'lucide-react';
 
 import { useState } from 'react';
 

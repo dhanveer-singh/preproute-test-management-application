@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import userAvatar from '@/assets/images/user-avatar.png';
 import logo from '@/assets/images/logo.svg';
 
-import { removeToken } from '@/utils/storage';
+import { getUser, removeToken, removeUser } from '@/utils/storage';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -20,6 +20,16 @@ function Header({ onMenuClick, mobileSidebarOpen }: HeaderProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);
 
   const [profileOpen, setProfileOpen] = useState(false);
+
+  /* =========================================================
+     GET LOGGED-IN USER
+  ========================================================= */
+
+  const user = getUser();
+
+  const userName = typeof user?.name === 'string' ? user.name.trim() : 'User';
+
+  const userRole = typeof user?.role === 'string' ? user.role.trim() : 'User';
 
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -88,8 +98,8 @@ function Header({ onMenuClick, mobileSidebarOpen }: HeaderProps) {
     setProfileOpen(false);
 
     /*
-     * Profile page/API is not part of the
-     * currently provided application flow.
+     * Profile page/API is not part of
+     * the currently provided application flow.
      *
      * Add navigation here once that route
      * is implemented.
@@ -104,6 +114,7 @@ function Header({ onMenuClick, mobileSidebarOpen }: HeaderProps) {
     setProfileOpen(false);
 
     removeToken();
+    removeUser();
 
     navigate('/login', {
       replace: true,
@@ -223,7 +234,11 @@ function Header({ onMenuClick, mobileSidebarOpen }: HeaderProps) {
             <Bell
               size={20}
               strokeWidth={1.8}
-              className="text-[#344054] sm:size-[21px] lg:size-[22px]"
+              className="
+                text-[#344054]
+                sm:size-[21px]
+                lg:size-[22px]
+              "
             />
 
             {/* Notification indicator */}
@@ -281,7 +296,8 @@ function Header({ onMenuClick, mobileSidebarOpen }: HeaderProps) {
 
             <img
               src={userAvatar}
-              alt="Alex Wando"
+              alt={userName}
+              title={userName}
               className="
                 h-9
                 w-9
@@ -296,12 +312,23 @@ function Header({ onMenuClick, mobileSidebarOpen }: HeaderProps) {
 
             {/* Desktop user information */}
 
-            <div className="hidden min-w-[115px] text-left lg:block">
-              <p className="truncate text-[18px] font-semibold leading-6 text-[#344054] xl:text-[20px]">
-                Alex Wando
+            <div className="hidden min-w-0 text-left sm:block">
+              <p
+                title={userName}
+                className="
+                  max-w-[180px]
+                  truncate
+                  text-[18px]
+                  font-semibold
+                  leading-6
+                  text-[#344054]
+                  xl:text-[20px]
+                "
+              >
+                {userName}
               </p>
 
-              <p className="mt-1 text-[13px] leading-5 text-[#475467]">Admin</p>
+              <p className="mt-1 text-[13px] capitalize leading-5 text-[#475467]">{userRole}</p>
             </div>
 
             {/* Dropdown icon */}
@@ -321,7 +348,14 @@ function Header({ onMenuClick, mobileSidebarOpen }: HeaderProps) {
 
           {/* Profile dropdown */}
 
-          {profileOpen && <ProfileDropdown onProfile={handleMyProfile} onLogout={handleLogout} />}
+          {profileOpen && (
+            <ProfileDropdown
+              userName={userName}
+              userRole={userRole}
+              onProfile={handleMyProfile}
+              onLogout={handleLogout}
+            />
+          )}
         </div>
       </div>
     </header>
@@ -358,7 +392,15 @@ function NotificationDropdown() {
 
         <button
           type="button"
-          className="cursor-pointer whitespace-nowrap text-[11px] font-medium text-[#5B8DEF] hover:underline sm:text-[12px]"
+          className="
+            cursor-pointer
+            whitespace-nowrap
+            text-[11px]
+            font-medium
+            text-[#5B8DEF]
+            hover:underline
+            sm:text-[12px]
+          "
         >
           Mark all as read
         </button>
@@ -392,7 +434,13 @@ function NotificationDropdown() {
       <div className="border-t border-[#E4E7EC] px-4 py-3 text-center">
         <button
           type="button"
-          className="cursor-pointer text-[13px] font-medium text-[#5B8DEF] hover:underline"
+          className="
+            cursor-pointer
+            text-[13px]
+            font-medium
+            text-[#5B8DEF]
+            hover:underline
+          "
         >
           View all notifications
         </button>
@@ -464,11 +512,13 @@ function NotificationItem({ title, description, time, unread = false }: Notifica
 ========================================================= */
 
 interface ProfileDropdownProps {
+  userName: string;
+  userRole: string;
   onProfile: () => void;
   onLogout: () => void;
 }
 
-function ProfileDropdown({ onProfile, onLogout }: ProfileDropdownProps) {
+function ProfileDropdown({ userName, userRole, onProfile, onLogout }: ProfileDropdownProps) {
   return (
     <div
       className="
@@ -476,7 +526,7 @@ function ProfileDropdown({ onProfile, onLogout }: ProfileDropdownProps) {
         right-0
         top-[50px]
         z-50
-        w-[210px]
+        w-[230px]
         overflow-hidden
         rounded-xl
         border
@@ -489,9 +539,11 @@ function ProfileDropdown({ onProfile, onLogout }: ProfileDropdownProps) {
       {/* Greeting */}
 
       <div className="border-b border-[#E4E7EC] px-4 py-3.5">
-        <p className="text-[13px] font-medium text-[#667085]">Hello, Alex!</p>
+        <p title={userName} className="truncate text-[13px] font-medium text-[#667085]">
+          Hello, {userName}!
+        </p>
 
-        <p className="mt-0.5 text-[12px] text-[#98A2B3]">Welcome back</p>
+        <p className="mt-0.5 text-[12px] capitalize text-[#98A2B3]">{userRole}</p>
       </div>
 
       {/* Menu */}

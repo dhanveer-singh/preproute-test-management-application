@@ -10,9 +10,11 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -233,11 +235,77 @@ function DashboardPage() {
      Cards are intentionally left as existing mock UI.
      We are NOT connecting cards in this step.
   ========================================================= */
+  const totalTests = tests.length;
 
+  const publishedTests = tests.filter((test) => test.status?.toLowerCase() === 'live').length;
+
+  const scheduledTests = tests.filter((test) => test.status?.toLowerCase() === 'scheduled').length;
+
+  const draftTests = tests.filter((test) => test.status?.toLowerCase() === 'draft').length;
+
+  const unpublishedTests = tests.filter(
+    (test) => test.status?.toLowerCase() === 'unpublished',
+  ).length;
+
+  const expiredTests = tests.filter((test) => test.status?.toLowerCase() === 'expired').length;
+  const statsScrollRef = useRef<HTMLDivElement>(null);
+
+  const [isDraggingStats, setIsDraggingStats] = useState(false);
+
+  const statsDragState = useRef({
+    isDragging: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
+
+  const scrollStats = (direction: 'left' | 'right') => {
+    if (!statsScrollRef.current) {
+      return;
+    }
+
+    const amount = 320;
+
+    statsScrollRef.current.scrollBy({
+      left: direction === 'left' ? -amount : amount,
+      behavior: 'smooth',
+    });
+  };
+
+  const handleStatsMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!statsScrollRef.current) {
+      return;
+    }
+
+    statsDragState.current = {
+      isDragging: true,
+      startX: event.pageX,
+      scrollLeft: statsScrollRef.current.scrollLeft,
+    };
+
+    setIsDraggingStats(true);
+  };
+
+  const handleStatsMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!statsDragState.current.isDragging || !statsScrollRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const distance = event.pageX - statsDragState.current.startX;
+
+    statsScrollRef.current.scrollLeft = statsDragState.current.scrollLeft - distance;
+  };
+
+  const stopStatsDragging = () => {
+    statsDragState.current.isDragging = false;
+
+    setIsDraggingStats(false);
+  };
   const overviewStats = [
     {
       title: 'Total Tests',
-      value: '148',
+      value: totalTests,
       change: '+12%',
       changeText: 'vs last month',
       trend: 'up',
@@ -247,7 +315,7 @@ function DashboardPage() {
 
     {
       title: 'Published Tests',
-      value: '94',
+      value: publishedTests,
       change: '+8%',
       changeText: 'vs last month',
       trend: 'up',
@@ -257,7 +325,7 @@ function DashboardPage() {
 
     {
       title: 'Scheduled Tests',
-      value: '32',
+      value: scheduledTests,
       change: '+4%',
       changeText: 'vs last month',
       trend: 'up',
@@ -267,14 +335,34 @@ function DashboardPage() {
 
     {
       title: 'Draft Tests',
-      value: '22',
+      value: draftTests,
       change: '-2%',
       changeText: 'vs last month',
       trend: 'down',
       icon: FilePlus2,
       iconClass: 'bg-[#F8F9FC] text-[#667085]',
     },
-  ] as const;
+
+    {
+      title: 'Unpublished Tests',
+      value: unpublishedTests,
+      change: '0%',
+      changeText: 'vs last month',
+      trend: 'up',
+      icon: RotateCcw,
+      iconClass: 'bg-[#F2F4F7] text-[#667085]',
+    },
+
+    {
+      title: 'Expired Tests',
+      value: expiredTests,
+      change: '0%',
+      changeText: 'vs last month',
+      trend: 'down',
+      icon: Timer,
+      iconClass: 'bg-[#FEF3F2] text-[#D92D20]',
+    },
+  ];
 
   /* =========================================================
      CREATE TEST
@@ -672,72 +760,165 @@ function DashboardPage() {
           }
         />
 
-        {/* =================================================
-            OVERVIEW CARDS
+        {/* =========================================================
+    OVERVIEW CARDS - DRAGGABLE HORIZONTAL CAROUSEL
+========================================================= */}
 
-            LEFT AS MOCK DATA FOR NOW
-        ================================================== */}
+        <div className="relative mb-6 px-1">
+          {/* LEFT ARROW */}
 
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {overviewStats.map((stat) => {
-            const Icon = stat.icon;
+          <button
+            type="button"
+            onClick={() => scrollStats('left')}
+            className="
+      absolute
+      -left-3
+      top-1/2
+      z-20
+      flex
+      h-10
+      w-10
+      -translate-y-1/2
+      cursor-pointer
+      items-center
+      justify-center
+      rounded-full
+      border
+      border-[#E4E7EC]
+      bg-white
+      text-[#344054]
+      shadow-md
+      transition-all
+      hover:bg-[#F9FAFB]
+      hover:text-[#315BEF]
+      active:scale-95
+    "
+            aria-label="Previous cards"
+          >
+            <ChevronLeft size={20} strokeWidth={1.8} />
+          </button>
 
-            return (
-              <div
-                key={stat.title}
-                className="
-                    rounded-xl
-                    border
-                    border-[#E4E7EC]
-                    bg-white
-                    px-5
-                    py-5
-                  "
-              >
-                {/* Card Header */}
+          {/* CARDS */}
 
-                <div className="flex items-center justify-between">
-                  <p className="text-[14px] font-medium text-[#667085]">{stat.title}</p>
+          <div
+            ref={statsScrollRef}
+            onMouseDown={handleStatsMouseDown}
+            onMouseMove={handleStatsMouseMove}
+            onMouseUp={stopStatsDragging}
+            onMouseLeave={stopStatsDragging}
+            onDragStart={(event) => event.preventDefault()}
+            className={`
+      flex
+      gap-4
+      overflow-x-auto
+      overflow-y-hidden
+      select-none
+      py-1
+      pl-2
+      pr-2
+      ${isDraggingStats ? 'cursor-grabbing' : 'cursor-grab'}
+    `}
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+            {overviewStats.map((stat) => {
+              const Icon = stat.icon;
 
-                  <div
-                    className={`
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-full
-                        ${stat.iconClass}
-                      `}
-                  >
-                    <Icon size={18} strokeWidth={1.8} />
+              return (
+                <div
+                  key={stat.title}
+                  className="
+              min-w-[280px]
+              max-w-[320px]
+              flex-[0_0_280px]
+              rounded-xl
+              border
+              border-[#E4E7EC]
+              bg-white
+              px-5
+              py-5
+            "
+                >
+                  {/* Card Header */}
+
+                  <div className="flex items-center justify-between">
+                    <p className="text-[14px] font-medium text-[#667085]">{stat.title}</p>
+
+                    <div
+                      className={`
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  rounded-full
+                  ${stat.iconClass}
+                `}
+                    >
+                      <Icon size={18} strokeWidth={1.8} />
+                    </div>
+                  </div>
+
+                  {/* Number */}
+
+                  <p className="mt-4 text-[32px] font-semibold leading-9 tracking-[-0.02em] text-[#101828]">
+                    {stat.value}
+                  </p>
+
+                  {/* Growth */}
+
+                  <div className="mt-2 flex items-center gap-1.5 text-[12px]">
+                    <span
+                      className={
+                        stat.trend === 'up'
+                          ? 'font-medium text-[#12B76A]'
+                          : 'font-medium text-[#F04438]'
+                      }
+                    >
+                      {stat.trend === 'up' ? '↑' : '↓'} {stat.change}
+                    </span>
+
+                    <span className="text-[#667085]">{stat.changeText}</span>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Number */}
+          {/* RIGHT ARROW */}
 
-                <p className="mt-4 text-[32px] font-semibold leading-9 tracking-[-0.02em] text-[#101828]">
-                  {stat.value}
-                </p>
-
-                {/* Growth */}
-
-                <div className="mt-2 flex items-center gap-1.5 text-[12px]">
-                  <span
-                    className={
-                      stat.trend === 'up'
-                        ? 'font-medium text-[#12B76A]'
-                        : 'font-medium text-[#F04438]'
-                    }
-                  >
-                    {stat.trend === 'up' ? '↑' : '↓'} {stat.change}
-                  </span>
-
-                  <span className="text-[#667085]">{stat.changeText}</span>
-                </div>
-              </div>
-            );
-          })}
+          <button
+            type="button"
+            onClick={() => scrollStats('right')}
+            className="
+      absolute
+      -right-3
+      top-1/2
+      z-20
+      flex
+      h-10
+      w-10
+      -translate-y-1/2
+      cursor-pointer
+      items-center
+      justify-center
+      rounded-full
+      border
+      border-[#E4E7EC]
+      bg-white
+      text-[#344054]
+      shadow-md
+      transition-all
+      hover:bg-[#F9FAFB]
+      hover:text-[#315BEF]
+      active:scale-95
+    "
+            aria-label="Next cards"
+          >
+            <ChevronRight size={20} strokeWidth={1.8} />
+          </button>
         </div>
 
         {/* =================================================
@@ -745,7 +926,7 @@ function DashboardPage() {
         ================================================== */}
 
         <div className="mb-6 rounded-xl border border-[#E4E7EC] bg-white p-4">
-          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-[1.25fr_1fr_1fr_auto]">
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]">
             {/* Search */}
 
             <input
@@ -833,39 +1014,8 @@ function DashboardPage() {
               ))}
             </select>
 
-            {/* Reset */}
+            {/* Status  */}
 
-            <button
-              type="button"
-              disabled={!hasActiveFilters}
-              onClick={handleClearFilters}
-              className="
-                flex
-                h-10
-                cursor-pointer
-                items-center
-                justify-center
-                gap-1.5
-                whitespace-nowrap
-                rounded-lg
-                px-3
-                text-[13px]
-                font-medium
-                text-[#667085]
-                transition
-                hover:bg-[#F2F4F7]
-                disabled:cursor-not-allowed
-                disabled:opacity-50
-              "
-            >
-              <RotateCcw size={14} strokeWidth={1.8} />
-              Reset Filters
-            </button>
-          </div>
-
-          {/* Status */}
-
-          <div className="mt-2.5 md:w-[calc(50%-5px)] xl:w-[calc(25%-8px)]">
             <select
               value={statusFilter}
               onChange={(event) => handleStatusChange(event.target.value)}
@@ -898,6 +1048,35 @@ function DashboardPage() {
 
               <option value="expired">Expired</option>
             </select>
+
+            {/* Reset */}
+
+            <button
+              type="button"
+              disabled={!hasActiveFilters}
+              onClick={handleClearFilters}
+              className="
+                flex
+                h-10
+                cursor-pointer
+                items-center
+                justify-center
+                gap-1.5
+                whitespace-nowrap
+                rounded-lg
+                px-3
+                text-[13px]
+                font-medium
+                text-[#667085]
+                transition
+                hover:bg-[#F2F4F7]
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+            >
+              <RotateCcw size={14} strokeWidth={1.8} />
+              Reset Filters
+            </button>
           </div>
         </div>
 
@@ -906,22 +1085,15 @@ function DashboardPage() {
         ================================================== */}
 
         <div className="min-w-0 overflow-hidden rounded-xl border border-[#E4E7EC] bg-white">
-          {/* Loading indicator */}
-
-          {isLoading && (
-            <div className="flex items-center justify-center gap-2 border-b border-[#E4E7EC] px-4 py-3 text-[13px] text-[#667085]">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#D0D5DD] border-t-[#315BEF]" />
-              Loading tests...
-            </div>
-          )}
-
           <Table
             columns={columns}
             data={paginatedTests}
             getRowKey={(row) => row.id}
             showSerialNumber
             startIndex={(currentPage - 1) * pageSize}
-            emptyMessage={isLoading ? 'Loading tests...' : 'No tests found'}
+            loading={isLoading}
+            loadingRows={8}
+            emptyMessage="No tests found"
           />
 
           <Pagination

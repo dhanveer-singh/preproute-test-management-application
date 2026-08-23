@@ -16,7 +16,8 @@ import { login } from '@/services/authApi';
 
 import type { LoginFormData } from '@/types/auth';
 
-import { setToken } from '@/utils/storage';
+import { setToken, setUser } from '@/utils/storage';
+
 import { showSuccess } from '@/utils/toast';
 
 function LoginPage() {
@@ -35,13 +36,35 @@ function LoginPage() {
     },
   });
 
+  /* =========================================================
+     LOGIN SUBMIT
+  ========================================================= */
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       const response = await login(data);
 
+      /* =====================================================
+         SAVE TOKEN
+      ===================================================== */
+
       setToken(response.data.token);
 
+      /* =====================================================
+         SAVE LOGGED-IN USER
+      ===================================================== */
+
+      setUser(response.data.user);
+
+      /* =====================================================
+         SUCCESS TOAST
+      ===================================================== */
+
       showSuccess(response.message);
+
+      /* =====================================================
+         REDIRECT TO DASHBOARD
+      ===================================================== */
 
       navigate(FRONTEND_ROUTES.DASHBOARD, {
         replace: true,
@@ -57,6 +80,10 @@ function LoginPage() {
   return (
     <main className="min-h-screen bg-[#F7F9FC] px-[20px] py-[18px]">
       <div className="flex min-h-[calc(100vh-36px)] w-full items-center overflow-hidden rounded-xl">
+        {/* =================================================
+            LEFT ILLUSTRATION
+        ================================================== */}
+
         <section className="hidden flex-1 items-center justify-center lg:flex">
           <img
             src={loginIllustration}
@@ -65,10 +92,22 @@ function LoginPage() {
           />
         </section>
 
+        {/* =================================================
+            LOGIN SECTION
+        ================================================== */}
+
         <section className="flex w-full justify-center lg:w-1/2">
           <div className="min-h-[calc(100vh-36px)] w-full max-w-177.5 rounded-lg border border-[#9CC5FF] bg-white px-8 py-12 sm:px-12 lg:px-24.75">
             <div className="flex h-full flex-col justify-center rounded-lg">
+              {/* =================================================
+                  LOGO
+              ================================================== */}
+
               <img src={logo} alt="Preproute" className="mb-7.5 h-auto w-35 object-contain" />
+
+              {/* =================================================
+                  HEADING
+              ================================================== */}
 
               <div className="mb-7.5">
                 <h1 className="text-[20px] font-semibold leading-7 text-[#344054]">Login</h1>
@@ -78,7 +117,15 @@ function LoginPage() {
                 </p>
               </div>
 
+              {/* =================================================
+                  LOGIN FORM
+              ================================================== */}
+
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+                {/* =================================================
+                    USER ID
+                ================================================== */}
+
                 <Input
                   id="userId"
                   label="User ID"
@@ -87,6 +134,10 @@ function LoginPage() {
                   {...register('userId')}
                   error={errors.userId?.message}
                 />
+
+                {/* =================================================
+                    PASSWORD
+                ================================================== */}
 
                 <Input
                   id="password"
@@ -98,12 +149,20 @@ function LoginPage() {
                   error={errors.password?.message}
                 />
 
+                {/* =================================================
+                    FORGOT PASSWORD
+                ================================================== */}
+
                 <button
                   type="button"
-                  className="-mt-3 text-left text-[14px] font-medium text-[#2563EB] hover:underline"
+                  className="-mt-3 cursor-pointer text-left text-[14px] font-medium text-[#2563EB] hover:underline"
                 >
                   Forgot password?
                 </button>
+
+                {/* =================================================
+                    LOGIN BUTTON
+                ================================================== */}
 
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? 'Logging in...' : 'Login'}

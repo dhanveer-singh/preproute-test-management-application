@@ -15,6 +15,10 @@ interface TableProps<T> {
   emptyMessage?: string;
   showSerialNumber?: boolean;
   startIndex?: number;
+
+  /* Loading state */
+  loading?: boolean;
+  loadingRows?: number;
 }
 
 function Table<T>({
@@ -24,12 +28,19 @@ function Table<T>({
   emptyMessage = 'No data found',
   showSerialNumber = false,
   startIndex = 0,
+  loading = false,
+  loadingRows = 8,
 }: TableProps<T>) {
   const totalColumns = columns.length + (showSerialNumber ? 1 : 0);
 
   return (
     <div className="w-full overflow-x-auto">
       <table className="w-full min-w-[1100px] border-collapse">
+        {/* =================================================
+            TABLE HEADER
+            Never affected by loading state
+        ================================================== */}
+
         <thead>
           <tr className="border-b border-[#E4E7EC] bg-[#F8FAFC]">
             {showSerialNumber && (
@@ -51,8 +62,64 @@ function Table<T>({
           </tr>
         </thead>
 
+        {/* =================================================
+            TABLE BODY
+        ================================================== */}
+
         <tbody>
-          {data.length > 0 ? (
+          {/* =================================================
+              LOADING SHIMMER
+          ================================================== */}
+
+          {loading ? (
+            Array.from({
+              length: loadingRows,
+            }).map((_, rowIndex) => (
+              <tr
+                key={`loading-row-${rowIndex}`}
+                className="border-b border-[#E4E7EC] last:border-b-0"
+              >
+                {/* S.No. */}
+
+                {showSerialNumber && (
+                  <td className="px-4 py-4 text-center">
+                    <div className="mx-auto h-4 w-6 animate-pulse rounded bg-[#EAECF0]" />
+                  </td>
+                )}
+
+                {/* Columns */}
+
+                {columns.map((column, columnIndex) => {
+                  const isActionColumn = column.key === 'actions';
+
+                  return (
+                    <td
+                      key={`${column.key}-${rowIndex}`}
+                      className={`px-4 py-4 text-[14px] text-[#475467] ${column.className ?? ''}`}
+                    >
+                      {isActionColumn ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <ShimmerBox width="w-8" height="h-8" />
+
+                          <ShimmerBox width="w-8" height="h-8" />
+
+                          <ShimmerBox width="w-8" height="h-8" />
+
+                          <ShimmerBox width="w-8" height="h-8" />
+                        </div>
+                      ) : (
+                        <ShimmerBox width={getSkeletonWidth(columnIndex)} height="h-4" />
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))
+          ) : data.length > 0 ? (
+            /* =================================================
+               ACTUAL DATA
+            ================================================== */
+
             data.map((row, index) => (
               <tr
                 key={getRowKey(row)}
@@ -86,6 +153,10 @@ function Table<T>({
               </tr>
             ))
           ) : (
+            /* =================================================
+               EMPTY STATE
+            ================================================== */
+
             <tr>
               <td colSpan={totalColumns} className="px-4 py-10 text-center text-sm text-[#667085]">
                 {emptyMessage}
@@ -96,6 +167,34 @@ function Table<T>({
       </table>
     </div>
   );
+}
+
+/* =========================================================
+   SHIMMER BOX
+========================================================= */
+
+function ShimmerBox({ width, height }: { width: string; height: string }) {
+  return (
+    <div
+      className={`
+        ${width}
+        ${height}
+        animate-pulse
+        rounded-md
+        bg-[#EAECF0]
+      `}
+    />
+  );
+}
+
+/* =========================================================
+   SKELETON WIDTH
+========================================================= */
+
+function getSkeletonWidth(columnIndex: number): string {
+  const widths = ['w-[180px]', 'w-[90px]', 'w-[120px]', 'w-10', 'w-10', 'w-20', 'w-20', 'w-20'];
+
+  return widths[columnIndex] ?? 'w-[100px]';
 }
 
 export default Table;

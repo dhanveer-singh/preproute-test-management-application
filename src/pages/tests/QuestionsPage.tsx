@@ -486,30 +486,23 @@ function QuestionsPage() {
   };
 
   /* =========================================================
-     SAVE QUESTIONS
-  ========================================================= */
+      SAVE QUESTIONS
+    ========================================================= */
 
-  const handleSaveQuestions = async () => {
+  const handleSaveQuestions = async (): Promise<boolean> => {
     if (!id) {
-      return;
+      showError('Test ID is missing.');
+      return false;
     }
 
     if (questions.length === 0) {
       showError('Please add at least one question before continuing.');
 
-      return;
+      return false;
     }
 
     try {
       setIsSaving(true);
-
-      /*
-       * Remove local IDs before
-       * sending the payload.
-       *
-       * Backend creates the real
-       * question IDs.
-       */
 
       const payload = questions.map((question) => ({
         type: 'mcq' as const,
@@ -517,11 +510,8 @@ function QuestionsPage() {
         question: question.question,
 
         option1: question.option1,
-
         option2: question.option2,
-
         option3: question.option3,
-
         option4: question.option4,
 
         correct_option: question.correct_option,
@@ -532,16 +522,20 @@ function QuestionsPage() {
 
         subject: question.subject,
 
+        topic: question.topic ?? undefined,
+
+        sub_topic: question.sub_topic ?? undefined,
+
         media_url: question.media_url ?? undefined,
 
-        test_id: id!,
+        test_id: id,
       }));
 
       await createQuestionsBulk(payload);
 
-      await createQuestionsBulk(payload);
+      showSuccess('Questions saved successfully.');
 
-      await createQuestionsBulk(payload);
+      return true;
     } catch (error) {
       console.error('Failed to save questions:', error);
 
@@ -554,17 +548,21 @@ function QuestionsPage() {
       } else {
         showError('Unable to save questions. Please try again.');
       }
+
+      return false;
     } finally {
       setIsSaving(false);
     }
   };
 
   /* =========================================================
-     SAVE & CONTINUE
-  ========================================================= */
+   SAVE & CONTINUE
+========================================================= */
 
   const handleContinue = async () => {
     if (!id) {
+      showError('Test ID is missing.');
+
       return;
     }
 
@@ -577,40 +575,17 @@ function QuestionsPage() {
     try {
       setIsContinueLoading(true);
 
-      const payload = questions.map((question) => ({
-        type: 'mcq' as const,
-        question: question.question,
-        option1: question.option1,
-        option2: question.option2,
-        option3: question.option3,
-        option4: question.option4,
-        correct_option: question.correct_option,
-        explanation: question.explanation ?? undefined,
-        difficulty: question.difficulty ?? undefined,
-        subject: question.subject,
-        topic: question.topic ?? undefined,
-        sub_topic: question.sub_topic ?? undefined,
-        media_url: question.media_url ?? undefined,
-        test_id: id!,
-      }));
+      const saved = await handleSaveQuestions();
 
-      await createQuestionsBulk(payload);
-
-      showSuccess('Questions saved successfully.');
+      if (!saved) {
+        return;
+      }
 
       navigate(FRONTEND_ROUTES.TESTS.PREVIEW(id));
     } catch (error) {
       console.error('Failed to continue:', error);
 
-      if (axios.isAxiosError(error)) {
-        const message = error.response?.data?.message;
-
-        showError(
-          typeof message === 'string' ? message : 'Unable to save questions. Please try again.',
-        );
-      } else {
-        showError('Unable to save questions. Please try again.');
-      }
+      showError('Unable to continue. Please try again.');
     } finally {
       setIsContinueLoading(false);
     }

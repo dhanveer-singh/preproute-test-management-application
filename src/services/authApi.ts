@@ -1,10 +1,9 @@
-import api from './api';
+import api from '@/services/api';
 
-import APIS from '@/constants/apiRoutes';
-import type { LoginFormData, LoginResponse } from '@/types/auth';
+import type { LoginPayload, LoginResponse } from '@/types/auth';
 
-export const login = async (credentials: LoginFormData): Promise<LoginResponse> => {
-  const response = await api.post<LoginResponse>(APIS.AUTH.LOGIN, credentials);
+export const login = async (payload: LoginPayload): Promise<LoginResponse> => {
+  const response = await api.post<LoginResponse>('/auth/login', payload);
 
   return response.data;
 };

@@ -1,30 +1,39 @@
-import { z } from 'zod';
+/* =========================================================
+   LOGIN REQUEST
+========================================================= */
 
-import type { ApiResponse } from './api';
-
-export const loginSchema = z.object({
-  userId: z.string().trim().min(1, 'User ID is required'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-export type LoginFormData = z.infer<typeof loginSchema>;
-
-export interface LoginUser {
-  id: string;
+export interface LoginPayload {
   userId: string;
-  name: string;
-  role: string;
-  subrole: string;
-  phone: string;
-  joiningDate: string;
-  endDate: string;
-  lastActive: string;
-  payment: boolean;
+  password: string;
 }
 
-export interface LoginData {
+/* =========================================================
+   LOGIN USER
+========================================================= */
+
+export interface LoginUser {
+  id?: string | number;
+  userId?: string;
+  name?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+/* =========================================================
+   LOGIN RESPONSE DATA
+========================================================= */
+
+export interface LoginResponseData {
   token: string;
   user: LoginUser;
 }
 
-export type LoginResponse = ApiResponse<LoginData>;
+/* =========================================================
+   LOGIN API RESPONSE
+========================================================= */
+
+export interface LoginResponse {
+  success: boolean;
+  data: LoginResponseData;
+  message: string;
+}

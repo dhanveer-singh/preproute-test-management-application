@@ -1,23 +1,29 @@
 const ROOT_PATH = '/';
 
-const AUTH = {
-  LOGIN: '/login',
-};
+const DASHBOARD = `${ROOT_PATH}dashboard`;
 
-const DASHBOARD = '/dashboard';
+const TESTS_ROOT = `${ROOT_PATH}tests`;
 
 const TESTS = {
-  ROOT: '/tests',
-  NEW: '/tests/new',
-  EDIT: (id: string) => `/tests/${id}/edit`,
-  QUESTIONS: (id: string) => `/tests/${id}/questions`,
-  PREVIEW: (id: string) => `/tests/${id}/preview`,
+  ROOT: TESTS_ROOT,
+
+  NEW: `${TESTS_ROOT}/new`,
+
+  EDIT: (id: string) => `${TESTS_ROOT}/${id}/edit`,
+
+  QUESTIONS: (id: string) => `${TESTS_ROOT}/${id}/questions`,
+
+  PREVIEW: (id: string) => `${TESTS_ROOT}/${id}/preview`,
+};
+
+const AUTH = {
+  LOGIN: `${ROOT_PATH}login`,
 };
 
 const FRONTEND_ROUTES = {
   ROOT_PATH,
-  AUTH,
   DASHBOARD,
+  AUTH,
   TESTS,
 };
 

@@ -518,7 +518,7 @@ interface ProfileDropdownProps {
   onLogout: () => void;
 }
 
-function ProfileDropdown({ userName, userRole, onProfile, onLogout }: ProfileDropdownProps) {
+function ProfileDropdown({ userName, onLogout }: ProfileDropdownProps) {
   return (
     <div
       className="

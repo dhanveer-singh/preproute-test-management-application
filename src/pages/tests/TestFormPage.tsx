@@ -14,7 +14,7 @@ import { getSubjects } from '@/services/subjectApi';
 
 import { getSubTopicsByTopics, getTopicsBySubject } from '@/services/topicApi';
 
-import { createTest, updateTest } from '@/services/testApi';
+import { createTest, getTestById, updateTest } from '@/services/testApi';
 
 import { showError, showSuccess } from '@/utils/toast';
 
@@ -22,6 +22,7 @@ import { testFormSchema, type TestFormData, type TestFormInput } from '@/schemas
 
 import type { CreateTestPayload, Subject, SubTopic, Topic } from '@/types/test';
 import { getErrorMessage } from '@/utils/error';
+import BrandLoader from '@/components/BrandLoader';
 
 /* =========================================================
    PAGE
@@ -43,6 +44,7 @@ function TestFormPage() {
     watch,
     getValues,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<TestFormInput, unknown, TestFormData>({
     resolver: zodResolver(testFormSchema),
@@ -118,7 +120,7 @@ function TestFormPage() {
   ========================================================= */
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [isEditLoading, setIsEditLoading] = useState(false);
   /* =========================================================
      FETCH SUBJECTS
   ========================================================= */
@@ -156,6 +158,172 @@ function TestFormPage() {
       mounted = false;
     };
   }, []);
+
+  /* =========================================================
+     FETCH EXISTING TEST FOR EDIT MODE
+  ========================================================= */
+
+  useEffect(() => {
+    if (!isEditMode || !id) {
+      return;
+    }
+
+    let mounted = true;
+
+    const loadExistingTest = async () => {
+      try {
+        setIsEditLoading(true);
+
+        const response = await getTestById(id);
+
+        if (!mounted) {
+          return;
+        }
+
+        /*
+         * Keep the API response locally. Some APIs return topic/subject
+         * values as IDs while others return names. We resolve both below.
+         */
+        const test = response as unknown as Record<string, unknown>;
+
+        const toStringValue = (value: unknown): string =>
+          value === null || value === undefined ? '' : String(value).trim();
+
+        const toStringArray = (value: unknown): string[] => {
+          if (!Array.isArray(value)) {
+            return [];
+          }
+
+          return value
+            .map((item) => {
+              if (item && typeof item === 'object') {
+                const record = item as Record<string, unknown>;
+                return toStringValue(record.id ?? record.name ?? record.value);
+              }
+
+              return toStringValue(item);
+            })
+            .filter(Boolean);
+        };
+
+        const findIdByValue = (
+          value: unknown,
+          items: Array<{ id: string; name: string }>,
+        ): string => {
+          const normalized = toStringValue(value);
+
+          if (!normalized) {
+            return '';
+          }
+
+          const directMatch = items.find((item) => item.id === normalized);
+
+          if (directMatch) {
+            return directMatch.id;
+          }
+
+          const nameMatch = items.find(
+            (item) => item.name.trim().toLowerCase() === normalized.toLowerCase(),
+          );
+
+          return nameMatch?.id ?? '';
+        };
+
+        /* ---------------------------------------------------------
+           Resolve subject
+        --------------------------------------------------------- */
+        const rawSubject = test.subject ?? test.subject_id ?? '';
+        const subjectId = findIdByValue(rawSubject, subjects);
+
+        /* ---------------------------------------------------------
+           Resolve topics
+        --------------------------------------------------------- */
+        let resolvedTopicIds: string[] = [];
+        let resolvedSubTopicIds: string[] = [];
+        let resolvedTopics: Topic[] = [];
+        let resolvedSubTopics: SubTopic[] = [];
+
+        if (subjectId) {
+          const topicData = await getTopicsBySubject(subjectId);
+
+          if (!mounted) {
+            return;
+          }
+
+          resolvedTopics = topicData;
+
+          const rawTopics = toStringArray(test.topics ?? test.topic_ids);
+
+          resolvedTopicIds = rawTopics
+            .map((value) => findIdByValue(value, topicData))
+            .filter(Boolean);
+
+          /* -------------------------------------------------------
+             Resolve sub-topics
+          ------------------------------------------------------- */
+          if (resolvedTopicIds.length > 0) {
+            const subTopicData = await getSubTopicsByTopics(resolvedTopicIds);
+
+            if (!mounted) {
+              return;
+            }
+
+            resolvedSubTopics = subTopicData;
+
+            const rawSubTopics = toStringArray(
+              test.sub_topics ?? test.subTopics ?? test.sub_topic_ids,
+            );
+
+            resolvedSubTopicIds = rawSubTopics
+              .map((value) => findIdByValue(value, subTopicData))
+              .filter(Boolean);
+          }
+        }
+
+        setTopics(resolvedTopics);
+        setSubTopics(resolvedSubTopics);
+
+        /* ---------------------------------------------------------
+           Populate the form after all dependent IDs are resolved.
+           React Hook Form defaultValues only run on first render,
+           therefore reset() is required for edit mode.
+        --------------------------------------------------------- */
+        reset({
+          name: toStringValue(test.name ?? test.title),
+          subject: subjectId,
+          type: toStringValue(test.type) || 'chapterwise',
+          topics: resolvedTopicIds,
+          subTopics: resolvedSubTopicIds,
+          difficulty: toStringValue(test.difficulty) || 'medium',
+          correctMarks: Number(test.correct_marks ?? test.correctMarks ?? 4),
+          wrongMarks: Number(test.wrong_marks ?? test.wrongMarks ?? -1),
+          unattemptMarks: Number(test.unattempt_marks ?? test.unattemptMarks ?? 0),
+          totalTime: Number(test.total_time ?? test.totalTime ?? 60),
+          totalMarks: Number(test.total_marks ?? test.totalMarks ?? 250),
+          totalQuestions: Number(test.total_questions ?? test.totalQuestions ?? 50),
+        });
+      } catch (error) {
+        console.error('Failed to load existing test:', error);
+
+        if (mounted) {
+          showError(getErrorMessage(error, 'Unable to load test details. Please try again.'));
+        }
+      } finally {
+        if (mounted) {
+          setIsEditLoading(false);
+        }
+      }
+    };
+
+    /* Subjects are required to convert a subject name into its ID. */
+    if (subjects.length > 0) {
+      loadExistingTest();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [isEditMode, id, subjects, reset]);
 
   /* =========================================================
      FETCH TOPICS BY SUBJECT
@@ -601,6 +769,24 @@ function TestFormPage() {
           FORM
       ====================================================== */}
 
+      {isEditMode && isEditLoading && (
+        <div
+          className="
+        absolute
+        inset-0
+        z-30
+        flex
+        items-center
+        justify-center
+        rounded-xl
+        bg-black/25
+        backdrop-blur-[2px]
+      "
+        >
+          <BrandLoader size={58} />
+        </div>
+      )}
+
       <form
         onSubmit={handleSubmit(handleFormSubmit)}
         className="overflow-hidden rounded-xl border border-[#E4E7EC] bg-white"
@@ -708,7 +894,7 @@ function TestFormPage() {
                     id="subject"
                     value={selectedSubject}
                     onChange={(event) => handleSubjectChange(event.target.value)}
-                    disabled={isSubjectsLoading || isSubmitting}
+                    disabled={isSubjectsLoading || isSubmitting || isEditLoading}
                     className={`h-11 w-full cursor-pointer appearance-none rounded-lg border bg-white px-4 pr-10 text-[14px] text-[#344054] outline-none focus:border-[#7594FF] focus:ring-1 focus:ring-[#7594FF] disabled:cursor-not-allowed disabled:bg-[#F9FAFB] disabled:text-[#98A2B3] ${
                       errors.subject ? 'border-[#F04438]' : 'border-[#D0D5DD]'
                     }`}
@@ -748,7 +934,7 @@ function TestFormPage() {
                   label="Topics"
                   required
                   placeholder={isTopicsLoading ? 'Loading Topics...' : 'Select Topics'}
-                  disabled={!selectedSubject || isTopicsLoading || isSubmitting}
+                  disabled={!selectedSubject || isTopicsLoading || isSubmitting || isEditLoading}
                   isOpen={topicMenuOpen}
                   selectedLabels={selectedTopicLabels}
                   selectedValues={selectedTopics}
@@ -776,7 +962,9 @@ function TestFormPage() {
                 <MultiSelectField
                   label="Sub-topics"
                   placeholder={isSubTopicsLoading ? 'Loading Sub-topics...' : 'Select Sub-topics'}
-                  disabled={!selectedTopics.length || isSubTopicsLoading || isSubmitting}
+                  disabled={
+                    !selectedTopics.length || isSubTopicsLoading || isSubmitting || isEditLoading
+                  }
                   isOpen={subTopicMenuOpen}
                   selectedLabels={selectedSubTopicLabels}
                   selectedValues={selectedSubTopics}
@@ -890,7 +1078,7 @@ function TestFormPage() {
         <div className="flex flex-col-reverse gap-3 border-t border-[#E4E7EC] bg-[#FCFCFD] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
           <button
             type="button"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isEditLoading}
             onClick={handleCancel}
             className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg border border-[#D0D5DD] bg-white px-6 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -899,15 +1087,25 @@ function TestFormPage() {
 
           <button
             type="button"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isEditLoading}
             onClick={handleSaveAsDraft}
             className="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg border border-[#D0D5DD] bg-white px-6 text-[14px] font-medium text-[#344054] transition hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? 'Saving...' : 'Save as Draft'}
           </button>
 
-          <Button type="submit" disabled={isSubmitting} className="!h-11 !w-auto !px-7">
-            {isSubmitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Next: Add Questions'}
+          <Button
+            type="submit"
+            disabled={isSubmitting || isEditLoading}
+            className="!h-11 !w-auto !px-7"
+          >
+            {isEditLoading
+              ? 'Loading...'
+              : isSubmitting
+                ? 'Saving...'
+                : isEditMode
+                  ? 'Save Changes'
+                  : 'Next: Add Questions'}
           </Button>
         </div>
       </form>

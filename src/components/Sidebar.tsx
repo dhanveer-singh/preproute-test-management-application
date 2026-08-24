@@ -71,7 +71,7 @@ function Sidebar() {
               className="
                 hidden
                 h-auto
-                w-[140px]
+                w-43
                 object-contain
                 xl:block
               "

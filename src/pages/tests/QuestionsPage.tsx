@@ -598,8 +598,18 @@ function QuestionsPage() {
   if (isTestLoading) {
     return (
       <main className="min-h-full bg-[#F8FAFD] px-4 py-6 sm:px-6">
-        <div className="flex min-h-[400px] items-center justify-center">
-          <p className="text-[14px] text-[#667085]">Loading test...</p>
+        <div
+          className="absolute
+        inset-0
+        z-30
+        flex
+        items-center
+        justify-center
+        rounded-xl
+        bg-black/25
+        backdrop-blur-[2px]"
+        >
+          <BrandLoader size={58} />
         </div>
       </main>
     );
@@ -669,8 +679,10 @@ function QuestionsPage() {
       ====================================================== */}
 
       <section className="mb-6 rounded-xl border border-[#E4E7EC] bg-white p-4 sm:p-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryItem label="Test Name" value={test.name} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="sm:col-span-3">
+            <SummaryItem label="Test Name" value={test.name} />
+          </div>
 
           <SummaryItem label="Subject" value={test.subject} />
 
@@ -1114,6 +1126,7 @@ function SummaryItem({ label, value }: SummaryItemProps) {
 ========================================================= */
 
 import type { UseFormRegisterReturn } from 'react-hook-form';
+import BrandLoader from '@/components/BrandLoader';
 
 interface OptionFieldProps {
   id: string;

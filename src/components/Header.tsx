@@ -542,8 +542,6 @@ function ProfileDropdown({ userName, userRole, onProfile, onLogout }: ProfileDro
         <p title={userName} className="truncate text-[13px] font-medium text-[#667085]">
           Hello, {userName}!
         </p>
-
-        <p className="mt-0.5 text-[12px] capitalize text-[#98A2B3]">{userRole}</p>
       </div>
 
       {/* Menu */}
@@ -551,30 +549,43 @@ function ProfileDropdown({ userName, userRole, onProfile, onLogout }: ProfileDro
       <div className="p-2">
         <button
           type="button"
-          onClick={onProfile}
+          disabled
           className="
-            flex
-            w-full
-            cursor-pointer
-            items-center
-            gap-3
-            rounded-lg
-            px-3
-            py-2.5
-            text-left
-            text-[13px]
-            font-medium
-            text-[#344054]
-            outline-none
-            transition
-            hover:bg-[#F8F9FC]
-            focus-visible:ring-2
-            focus-visible:ring-[#315BEF]/30
-          "
+    flex
+    w-full
+    cursor-not-allowed
+    items-center
+    justify-between
+    gap-3
+    rounded-lg
+    px-3
+    py-2.5
+    text-left
+    text-[13px]
+    font-medium
+    text-[#98A2B3]
+    opacity-70
+  "
         >
-          <User size={17} strokeWidth={1.8} />
+          <span className="flex items-center gap-3">
+            <User size={17} strokeWidth={1.8} />
 
-          <span>My Profile</span>
+            <span>My Profile</span>
+          </span>
+
+          <span
+            className="
+      rounded-full
+      bg-[#F2F4F7]
+      px-2
+      py-0.5
+      text-[10px]
+      font-medium
+      text-[#667085]
+    "
+          >
+            Soon
+          </span>
         </button>
 
         <button

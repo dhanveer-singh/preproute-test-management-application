@@ -34,6 +34,8 @@ import { confirmDelete } from '@/utils/alert';
 import { showError, showSuccess } from '@/utils/toast';
 
 import { DIFFICULTY_OPTIONS } from '@/constants/test';
+import BrandLoader from '@/components/BrandLoader';
+import { getErrorMessage } from '@/utils/error';
 
 /* =========================================================
    DASHBOARD TABLE TYPE
@@ -88,8 +90,6 @@ function DashboardPage() {
 
   const [tests, setTests] = useState<Test[]>([]);
 
-  const [isLoading, setIsLoading] = useState(false);
-
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   /* =========================================================
@@ -115,6 +115,7 @@ function DashboardPage() {
   /* =========================================================
      FETCH TESTS
   ========================================================= */
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchTests = async () => {
     try {
@@ -126,7 +127,7 @@ function DashboardPage() {
     } catch (error) {
       console.error('Failed to fetch tests:', error);
 
-      showError('Unable to load tests. Please try again.');
+      showError(getErrorMessage(error, 'Unable to load tests. Please try again.'));
     } finally {
       setIsLoading(false);
     }
@@ -171,6 +172,16 @@ function DashboardPage() {
     [tests],
   );
 
+  /* =========================================================
+     STATUS OPTIONS
+  ========================================================= */
+  const statusOptions = useMemo(() => {
+    const statuses = Array.from(
+      new Set(dashboardTests.map((test) => test.status?.toLowerCase()).filter(Boolean)),
+    );
+
+    return statuses;
+  }, [dashboardTests]);
   /* =========================================================
      SUBJECT OPTIONS
   ========================================================= */
@@ -409,8 +420,7 @@ function DashboardPage() {
       showSuccess('Test deleted successfully.');
     } catch (error) {
       console.error('Failed to delete test:', error);
-
-      showError('Unable to delete test. Please try again.');
+      showError(getErrorMessage(error, 'Unable to delete test. Please try again.'));
     } finally {
       setActionLoadingId(null);
     }
@@ -753,7 +763,7 @@ function DashboardPage() {
             },
           ]}
           actions={
-            <Button type="button" onClick={handleCreateTest}>
+            <Button type="button" onClick={handleCreateTest} disabled={isLoading}>
               <Plus size={18} strokeWidth={2} />
               Create New Test
             </Button>
@@ -761,10 +771,32 @@ function DashboardPage() {
         />
 
         {/* =========================================================
-    OVERVIEW CARDS - DRAGGABLE HORIZONTAL CAROUSEL
-========================================================= */}
+              OVERVIEW CARDS - DRAGGABLE HORIZONTAL CAROUSEL
+          ========================================================= */}
 
         <div className="relative mb-6 px-1">
+          {/* =================================================
+               LOADING OVERLAY
+            ================================================== */}
+
+          {isLoading && (
+            <div
+              className="
+        absolute
+        inset-0
+        z-30
+        flex
+        items-center
+        justify-center
+        rounded-xl
+        bg-black/25
+        backdrop-blur-[2px]
+      "
+            >
+              <BrandLoader size={58} />
+            </div>
+          )}
+
           {/* LEFT ARROW */}
 
           <button
@@ -799,7 +831,6 @@ function DashboardPage() {
           </button>
 
           {/* CARDS */}
-
           <div
             ref={statsScrollRef}
             onMouseDown={handleStatsMouseDown}
@@ -886,7 +917,6 @@ function DashboardPage() {
               );
             })}
           </div>
-
           {/* RIGHT ARROW */}
 
           <button
@@ -932,6 +962,7 @@ function DashboardPage() {
             <input
               type="search"
               value={search}
+              disabled={isLoading}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="Search by test name..."
               className="
@@ -956,6 +987,7 @@ function DashboardPage() {
 
             <select
               value={subjectFilter}
+              disabled={isLoading}
               onChange={(event) => handleSubjectChange(event.target.value)}
               className="
                 h-10
@@ -987,6 +1019,7 @@ function DashboardPage() {
 
             <select
               value={difficultyFilter}
+              disabled={isLoading}
               onChange={(event) => handleDifficultyChange(event.target.value)}
               className="
                 h-10
@@ -1018,37 +1051,36 @@ function DashboardPage() {
 
             <select
               value={statusFilter}
+              disabled={isLoading}
               onChange={(event) => handleStatusChange(event.target.value)}
               className="
-                h-10
-                w-full
-                cursor-pointer
-                rounded-lg
-                border
-                border-[#D0D5DD]
-                bg-white
-                px-3.5
-                text-[14px]
-                text-[#667085]
-                outline-none
-                focus:border-[#7594FF]
-                focus:ring-1
-                focus:ring-[#7594FF]
-              "
+    h-10
+    w-full
+    cursor-pointer
+    rounded-lg
+    border
+    border-[#D0D5DD]
+    bg-white
+    px-3.5
+    text-[14px]
+    text-[#667085]
+    outline-none
+    focus:border-[#7594FF]
+    focus:ring-1
+    focus:ring-[#7594FF]
+    disabled:cursor-not-allowed
+    disabled:bg-[#F9FAFB]
+    disabled:opacity-60
+  "
             >
               <option value="all">Status</option>
 
-              <option value="published">Published</option>
-
-              <option value="scheduled">Scheduled</option>
-
-              <option value="draft">Draft</option>
-
-              <option value="unpublished">Unpublished</option>
-
-              <option value="expired">Expired</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {getStatusLabel(status)}
+                </option>
+              ))}
             </select>
-
             {/* Reset */}
 
             <button

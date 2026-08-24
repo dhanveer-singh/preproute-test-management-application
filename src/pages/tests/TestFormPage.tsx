@@ -21,6 +21,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { testFormSchema, type TestFormData, type TestFormInput } from '@/schemas/test.schema';
 
 import type { CreateTestPayload, Subject, SubTopic, Topic } from '@/types/test';
+import { getErrorMessage } from '@/utils/error';
 
 /* =========================================================
    PAGE
@@ -539,7 +540,7 @@ function TestFormPage() {
       navigate(FRONTEND_ROUTES.DASHBOARD);
     } catch (error) {
       console.error('Failed to save draft:', error);
-      showError('Unable to save the draft. Please try again.');
+      showError(getErrorMessage(error, 'Unable to save the draft. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

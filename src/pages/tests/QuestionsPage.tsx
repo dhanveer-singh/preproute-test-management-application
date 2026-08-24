@@ -1,5 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, Edit2, Plus, Trash2 } from 'lucide-react';
+import {
+  BarChart3,
+  BookCheck,
+  ChevronDown,
+  Clock,
+  Edit2,
+  FileQuestion,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -675,23 +685,298 @@ function QuestionsPage() {
       </div>
 
       {/* =====================================================
-          TEST SUMMARY
-      ====================================================== */}
+    TEST SUMMARY
+====================================================== */}
 
-      <section className="mb-6 rounded-xl border border-[#E4E7EC] bg-white p-4 sm:p-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="sm:col-span-3">
-            <SummaryItem label="Test Name" value={test.name} />
+      <section
+        className="
+    mb-6
+    rounded-xl
+    border
+    border-[#E4E7EC]
+    bg-white
+    px-6
+    py-5
+    sm:px-7
+    sm:py-6
+  "
+      >
+        {/* =================================================
+      TOP ROW — TYPE + EDIT
+  ================================================== */}
+
+        <div className="flex items-start justify-between">
+          {/* Test Type */}
+
+          <span
+            className="
+        inline-flex
+        items-center
+        rounded-full
+        bg-[#0D0B4F]
+        px-3
+        py-1
+        text-[13px]
+        font-medium
+        leading-5
+        text-white
+      "
+          >
+            {test.type === 'chapterwise' ? 'Chapter Wise' : test.type || 'Chapter Wise'}
+          </span>
+
+          {/* Edit */}
+
+          <button
+            type="button"
+            onClick={() => navigate(`/tests/${test.id}/edit`)}
+            className="
+        mt-0.5
+        flex
+        h-8
+        w-8
+        cursor-pointer
+        items-center
+        justify-center
+        rounded-md
+        text-[#7594FF]
+        transition
+        hover:bg-[#F5F7FF]
+        hover:text-[#315BEF]
+        active:scale-95
+      "
+            aria-label="Edit test"
+            title="Edit test"
+          >
+            <Pencil size={23} strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* =================================================
+      CHAPTER / TEST NAME + DIFFICULTY
+  ================================================== */}
+
+        <div className="mt-5 flex items-center gap-3">
+          {/* Chapter Icon */}
+
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+            <BookCheck />
           </div>
 
-          <SummaryItem label="Subject" value={test.subject} />
+          {/* Test Name */}
 
-          <SummaryItem label="Difficulty" value={test.difficulty} />
+          <h2 className="text-[20px] font-semibold leading-7 text-[#101828]">{test.name || '—'}</h2>
 
-          <SummaryItem label="Questions" value={String(questions.length)} />
+          {/* Difficulty */}
+
+          {test.difficulty && (
+            <span
+              className="
+          inline-flex
+          h-8
+          items-center
+          rounded-lg
+          bg-[#2CB9AD]
+          px-5
+          text-[14px]
+          font-medium
+          capitalize
+          text-white
+        "
+            >
+              {test.difficulty}
+            </span>
+          )}
+        </div>
+
+        {/* =================================================
+      DETAILS
+  ================================================== */}
+
+        <div className="mt-6 space-y-5">
+          {/* =================================================
+        SUBJECT
+    ================================================== */}
+
+          <div className="flex items-center">
+            <span
+              className="
+          w-[125px]
+          shrink-0
+          text-[14px]
+          font-normal
+          text-[#98A2B3]
+        "
+            >
+              Subject
+            </span>
+
+            <span className="mr-2 text-[14px] text-[#98A2B3]">:</span>
+
+            <span className="text-[16px] font-medium text-[#6B7280]">{test.subject || '—'}</span>
+          </div>
+
+          {/* =================================================
+        TOPIC
+    ================================================== */}
+
+          <div className="flex items-start">
+            <span
+              className="
+          w-[125px]
+          shrink-0
+          pt-1
+          text-[14px]
+          font-normal;
+          text-[#98A2B3]
+        "
+            >
+              Topic
+            </span>
+
+            <span className="mr-2 pt-1 text-[14px] text-[#98A2B3]">:</span>
+
+            <div className="flex flex-wrap gap-2">
+              {Array.isArray(test.topics) && test.topics.length > 0 ? (
+                test.topics.map((topic) => (
+                  <span
+                    key={topic}
+                    className="
+                inline-flex
+                items-center
+                rounded-lg
+                border
+                border-[#F5C451]
+                bg-white
+                px-3
+                py-1
+                text-[14px]
+                font-medium
+                leading-5
+                text-[#F2A900]
+              "
+                  >
+                    {topic}
+                  </span>
+                ))
+              ) : (
+                <span className="pt-1 text-[14px] text-[#98A2B3]">—</span>
+              )}
+            </div>
+          </div>
+
+          {/* =================================================
+        SUB TOPIC
+    ================================================== */}
+
+          <div className="flex items-start">
+            <span
+              className="
+          w-[125px]
+          shrink-0
+          pt-1
+          text-[14px]
+          font-normal
+          text-[#98A2B3]
+        "
+            >
+              Sub Topic
+            </span>
+
+            <span className="mr-2 pt-1 text-[14px] text-[#98A2B3]">:</span>
+
+            <div className="flex flex-wrap gap-2">
+              {Array.isArray(test.sub_topics) && test.sub_topics.length > 0 ? (
+                test.sub_topics.map((subTopic) => (
+                  <span
+                    key={subTopic}
+                    className="
+                inline-flex
+                items-center
+                rounded-lg
+                border
+                border-[#F5C451]
+                bg-white
+                px-3
+                py-1
+                text-[14px]
+                font-medium
+                leading-5
+                text-[#F2A900]
+              "
+                  >
+                    {subTopic}
+                  </span>
+                ))
+              ) : (
+                <span className="pt-1 text-[14px] text-[#98A2B3]">—</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* =================================================
+      STATS — BOTTOM RIGHT
+  ================================================== */}
+
+        <div className="mt-5 flex justify-end">
+          <div
+            className="
+        flex
+        items-center
+        overflow-hidden
+        rounded-xl
+        border
+        border-[#E4E7EC]
+        bg-white
+      "
+          >
+            {/* =================================================
+          TIME
+      ================================================== */}
+
+            <div className="flex items-center gap-2 px-3 py-2">
+              <Clock size={18} strokeWidth={1.7} className="text-[#98A2B3]" />
+
+              <span className="whitespace-nowrap text-[14px] font-medium text-[#475467]">
+                {test.total_time ?? 0} Min
+              </span>
+            </div>
+
+            {/* Divider */}
+
+            <div className="h-6 w-px bg-[#E4E7EC]" />
+
+            {/* =================================================
+          QUESTIONS
+      ================================================== */}
+
+            <div className="flex items-center gap-2 px-3 py-2">
+              <FileQuestion size={18} strokeWidth={1.7} className="text-[#98A2B3]" />
+
+              <span className="whitespace-nowrap text-[14px] font-medium text-[#475467]">
+                {test.total_questions ?? questions.length} Q&apos;s
+              </span>
+            </div>
+
+            {/* Divider */}
+
+            <div className="h-6 w-px bg-[#E4E7EC]" />
+
+            {/* =================================================
+          MARKS
+      ================================================== */}
+
+            <div className="flex items-center gap-2 px-3 py-2">
+              <BarChart3 size={18} strokeWidth={1.7} className="text-[#98A2B3]" />
+
+              <span className="whitespace-nowrap text-[14px] font-medium text-[#475467]">
+                {test.total_marks ?? 0} Marks
+              </span>
+            </div>
+          </div>
         </div>
       </section>
-
       {/* =====================================================
           QUESTION FORM
       ====================================================== */}

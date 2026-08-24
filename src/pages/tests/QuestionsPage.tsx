@@ -1384,28 +1384,6 @@ function QuestionsPage() {
     </main>
   );
 }
-
-/* =========================================================
-   SUMMARY ITEM
-========================================================= */
-
-interface SummaryItemProps {
-  label: string;
-  value: string;
-}
-
-function SummaryItem({ label, value }: SummaryItemProps) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[#98A2B3]">{label}</p>
-
-      <p className="mt-1 truncate text-[14px] font-medium text-[#344054]" title={value}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
 /* =========================================================
    OPTION FIELD
 ========================================================= */

@@ -290,17 +290,29 @@ function TestFormPage() {
         --------------------------------------------------------- */
         reset({
           name: toStringValue(test.name ?? test.title),
+
           subject: subjectId,
+
           type: toStringValue(test.type) || 'chapterwise',
+
           topics: resolvedTopicIds,
+
           subTopics: resolvedSubTopicIds,
+
           difficulty: toStringValue(test.difficulty) || 'medium',
-          correctMarks: Number(test.correct_marks ?? test.correctMarks ?? 4),
-          wrongMarks: Number(test.wrong_marks ?? test.wrongMarks ?? -1),
-          unattemptMarks: Number(test.unattempt_marks ?? test.unattemptMarks ?? 0),
-          totalTime: Number(test.total_time ?? test.totalTime ?? 60),
-          totalMarks: Number(test.total_marks ?? test.totalMarks ?? 250),
-          totalQuestions: Number(test.total_questions ?? test.totalQuestions ?? 50),
+
+          // IMPORTANT: keep form input values as strings
+          correctMarks: toStringValue(test.correct_marks ?? test.correctMarks ?? 4),
+
+          wrongMarks: toStringValue(test.wrong_marks ?? test.wrongMarks ?? -1),
+
+          unattemptMarks: toStringValue(test.unattempt_marks ?? test.unattemptMarks ?? 0),
+
+          totalTime: toStringValue(test.total_time ?? test.totalTime ?? 60),
+
+          totalMarks: toStringValue(test.total_marks ?? test.totalMarks ?? 250),
+
+          totalQuestions: toStringValue(test.total_questions ?? test.totalQuestions ?? 50),
         });
       } catch (error) {
         console.error('Failed to load existing test:', error);
